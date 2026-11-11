@@ -29,3 +29,10 @@ ollama_data/models/blobs/sha256-ca2591c73864f71a6bfef49e77a3eed9f9f80a5a56651db2
 ollama_data/models/blobs/sha256-eda8f0e9f4e9b03c14eb5b2592dcde0be17425fbbdfdcb8f0380b075641c77ea
 ollama_data/models/manifests-v2/ollama.com/library/coder79/latest
 ollama_data/models/metadata/sha256-8f6d02d1158babc42f596178ed584536df617f4b4dca21925daa4bf89e27ee7c.json
+coder79_slm_model/coder79-export-uwb99ugi/coder79/merged_16bit/chat_template.jinja
+coder79_slm_model/coder79-export-uwb99ugi/coder79/merged_16bit/config.json
+coder79_slm_model/coder79-export-uwb99ugi/coder79/merged_16bit/generation_config.json
+coder79_slm_model/coder79-export-uwb99ugi/coder79/merged_16bit/model.safetensors
+coder79_slm_model/coder79-export-uwb99ugi/coder79/merged_16bit/tokenizer_config.json
+coder79_slm_model/coder79-export-uwb99ugi/coder79/merged_16bit/tokenizer.json
+coder79_slm_model/coder79-export-uwb99ugi/coder79/coder79.BF16.gguf
