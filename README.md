@@ -113,20 +113,20 @@ The exported GGUF file and `Modelfile` are mounted into the Ollama container by 
 
 ```powershell
 docker compose up -d
-docker compose exec ollama ollama create coder79 -f /app/model/Modelfile
+docker compose exec --workdir /app/model ollama ollama create coder79_slm_model -f Modelfile
 ```
 
 Open an interactive chat:
 
 ```powershell
-docker compose exec -it ollama ollama run coder79
+docker compose exec -it ollama ollama run coder79_slm_model
 ```
 
 The Ollama API is available at `http://localhost:11434`. To generate a response from PowerShell:
 
 ```powershell
 $body = @{
-    model = "coder79"
+    model = "coder79_slm_model"
     prompt = "Write a Python function to parse JSON safely."
     stream = $false
 } | ConvertTo-Json
@@ -142,6 +142,23 @@ The Ollama model is stored in `ollama_data`, so you only need to run `ollama cre
 ```powershell
 docker compose down
 ```
+
+### Recreate or remove the Ollama model
+
+After changing the GGUF file or settings in `coder79_slm_model/Modelfile`, recreate the registered model:
+
+```powershell
+docker compose exec ollama ollama rm coder79_slm_model
+docker compose exec --workdir /app/model ollama ollama create coder79_slm_model -f Modelfile
+```
+
+To remove the model from Ollama without deleting the source GGUF file or `Modelfile`:
+
+```powershell
+docker compose exec ollama ollama rm coder79_slm_model
+```
+
+This removes the registered model from Ollama's `ollama_data`; the source files in `coder79_slm_model/` remain available to register it again.
 
 The service uses resource limits configured in `docker-compose.yml`:
 
@@ -170,8 +187,8 @@ Run the already-exported model from Docker:
 
 ```powershell
 docker compose up -d
-docker compose exec ollama ollama create coder79 -f /app/model/Modelfile
-docker compose exec -it ollama ollama run coder79
+docker compose exec --workdir /app/model ollama ollama create coder79_slm_model -f Modelfile
+docker compose exec -it ollama ollama run coder79_slm_model
 ```
 
 To train/export a new model first, install the training dependencies and run `python main.py`; then repeat the Docker commands above.
