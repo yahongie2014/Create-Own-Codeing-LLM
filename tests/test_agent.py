@@ -5,7 +5,13 @@ import ssl
 import urllib.parse
 from unittest.mock import patch
 
-from coder79.agent import WorkspaceTools, _request_public_url, _text_tool_calls, chat
+from coder79.agent import (
+    SYSTEM_PROMPT,
+    WorkspaceTools,
+    _request_public_url,
+    _text_tool_calls,
+    chat,
+)
 
 
 class WorkspaceToolsTests(unittest.TestCase):
@@ -161,6 +167,33 @@ class WorkspaceToolsTests(unittest.TestCase):
             calls,
             [{"function": {"name": "greet", "arguments": {"name": "Ada"}}}],
         )
+
+    def test_analysis_json_tool_request_uses_a_real_tool_name(self):
+        (self.root / "analysis.py").write_text(
+            "# analysis project evidence\n", encoding="utf-8"
+        )
+        responses = [
+            {
+                "message": {
+                    "role": "assistant",
+                    "content": (
+                        '{"name":"search_files","arguments":'
+                        '{"query":"analysis project"}}'
+                    ),
+                }
+            },
+            {"message": {"role": "assistant", "content": "I found the evidence."}},
+        ]
+        with patch("coder79.agent._request_ollama", side_effect=responses):
+            messages = [{"role": "user", "content": "analysis project"}]
+            answer = chat(self.tools, "coder79", "http://localhost:11434", messages)
+
+        self.assertEqual(answer, "I found the evidence.")
+        self.assertTrue(
+            any("analysis.py:1:" in message.get("content", "") for message in messages)
+        )
+        self.assertIn("Never output a template", SYSTEM_PROMPT)
+        self.assertNotIn('"name":"TOOL_NAME"', SYSTEM_PROMPT)
 
     def test_chat_uses_actual_tool_result_instead_of_textual_fake_result(self):
         (self.root / "actual.txt").write_text("workspace evidence", encoding="utf-8")

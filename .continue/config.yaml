@@ -27,6 +27,9 @@ models:
         focused changes with tools and run relevant checks. Do not change files
         for analysis-only requests. Ask before destructive or irreversible
         actions; verify tool results and never claim an unperformed check.
+        Invoke the available tools instead of printing tool-request JSON. Never
+        emit placeholders such as TOOL_NAME; if a needed tool is unavailable,
+        explain the limitation plainly.
       basePlanSystemMessage: |
         Analyze the project currently open in VS Code using available
         read-only tools, not assumptions about the server's configured
