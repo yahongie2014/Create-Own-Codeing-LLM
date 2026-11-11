@@ -12,7 +12,7 @@ from trl import SFTTrainer, SFTConfig
 from unsloth import FastLanguageModel, get_chat_template
 
 if __name__ == "__main__":
-    project_dir = Path(__file__).resolve().parent
+    project_dir = Path(__file__).resolve().parents[1]
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--resume-from-checkpoint",
@@ -76,14 +76,14 @@ if __name__ == "__main__":
     dataset = load_dataset(
         "json",
         data_files=[
-            str(project_dir / "coding_dataset.jsonl"),
-            str(project_dir / "coding_dataset_php.jsonl"),
-            str(project_dir / "coding_dataset_advanced.jsonl"),
+            str(project_dir / "data" / "coding_dataset.jsonl"),
+            str(project_dir / "data" / "coding_dataset_php.jsonl"),
+            str(project_dir / "data" / "coding_dataset_advanced.jsonl"),
         ],
         split="train",
     )
     skills = json.loads(
-        (project_dir / "coding_skills.json").read_text(encoding="utf-8")
+        (project_dir / "data" / "coding_skills.json").read_text(encoding="utf-8")
     )
     skills_dataset = datasets.Dataset.from_list(skills["training_conversations"])
     dataset = datasets.concatenate_datasets([dataset, skills_dataset])
@@ -96,6 +96,9 @@ if __name__ == "__main__":
         },
         batched=True,
     )
+
+    training_dir = project_dir / "artifacts" / "training"
+    training_dir.mkdir(parents=True, exist_ok=True)
 
     # 6. Configure Trainer using SFTConfig
     trainer = SFTTrainer(
@@ -115,9 +118,7 @@ if __name__ == "__main__":
             bf16=False,
             logging_steps=1,
             output_dir=str(
-                project_dir
-                / "outputs"
-                / f"skills-run-{datetime.now():%Y%m%d-%H%M%S}"
+                training_dir / f"skills-run-{datetime.now():%Y%m%d-%H%M%S}"
             ),
             optim="adamw_torch",
             weight_decay=0.01,
@@ -136,7 +137,7 @@ if __name__ == "__main__":
     )
 
     # 8. Save Locally & Export to GGUF (for Ollama)
-    model_dir = project_dir / "coder79_slm_model"
+    model_dir = project_dir / "models" / "coder79"
     model_dir.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="coder79-export-", dir=model_dir) as temp_dir:
         export_dir = Path(temp_dir) / "coder79"
@@ -169,5 +170,5 @@ if __name__ == "__main__":
         )
     print(
         "Training complete! GGUF model successfully saved to "
-        f"{project_dir / 'coder79_slm_model'}"
+        f"{project_dir / 'models' / 'coder79'}"
     )

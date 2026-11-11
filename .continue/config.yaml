@@ -1,0 +1,26 @@
+name: Coder79 Local
+version: 1.0.0
+schema: v1
+
+models:
+  - name: Coder79
+    provider: openai
+    model: coder79
+    apiBase: http://127.0.0.1:8000/v1
+    apiKey: local-only
+    roles:
+      - chat
+    capabilities:
+      - tool_use
+    defaultCompletionOptions:
+      contextLength: 8192
+      maxTokens: 2048
+    chatOptions:
+      baseAgentSystemMessage: |
+        Use only Coder79's built-in read-only workspace and public-page tools.
+        Do not edit files, run terminal commands, or claim to have changed the
+        workspace. Explain recommended changes instead of applying them.
+      basePlanSystemMessage: |
+        Create a concise, evidence-based implementation plan. Inspect relevant
+        workspace files using available read-only tools. Do not edit files or
+        run terminal commands.

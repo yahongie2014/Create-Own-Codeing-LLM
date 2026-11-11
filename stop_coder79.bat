@@ -9,12 +9,12 @@ if errorlevel 1 (
     exit /b 1
 )
 
-echo Stopping the Coder79 Ollama container...
-docker compose stop ollama
+echo Stopping the Coder79 Docker services...
+docker compose stop
 if errorlevel 1 (
-    echo ERROR: Could not stop the Ollama service.
+    echo ERROR: Could not stop the Docker services.
     exit /b 1
 )
 
-echo Coder79 is stopped. The model and Ollama data have been preserved.
+echo Coder79 is stopped. The model, Ollama data, and WebUI data have been preserved.
 exit /b 0

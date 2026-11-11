@@ -17,8 +17,8 @@ if errorlevel 1 (
     exit /b 1
 )
 
-echo Starting Ollama, the WebUI, and the Coder79 agent...
-docker compose up -d ollama ollama-webui coder79-agent
+echo Building and starting Ollama, the WebUI, and the Coder79 agent...
+docker compose up -d --build ollama ollama-webui coder79-agent
 if errorlevel 1 (
     echo ERROR: Could not start the Ollama Docker services.
     exit /b 1
@@ -52,4 +52,5 @@ echo.
 echo Coder79 is ready. To start an interactive chat, run:
 echo docker compose exec -it ollama ollama run coder79
 echo Open WebUI is available at http://localhost:3000
+echo The OpenAI-compatible IDE endpoint is available at http://127.0.0.1:8000/v1
 exit /b 0

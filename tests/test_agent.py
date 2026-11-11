@@ -5,7 +5,7 @@ import ssl
 import urllib.parse
 from unittest.mock import patch
 
-from coder79_agent import WorkspaceTools, _request_public_url, _text_tool_calls, chat
+from coder79.agent import WorkspaceTools, _request_public_url, _text_tool_calls, chat
 
 
 class WorkspaceToolsTests(unittest.TestCase):
@@ -65,7 +65,7 @@ class WorkspaceToolsTests(unittest.TestCase):
                 return_value=(parsed_url, "93.184.216.34"),
             ),
             patch(
-                "coder79_agent._request_public_url",
+                "coder79.agent._request_public_url",
                 return_value=(200, {"content-type": "text/html; charset=utf-8"}, markup),
             ),
         ):
@@ -89,7 +89,7 @@ class WorkspaceToolsTests(unittest.TestCase):
                 side_effect=[(start, "93.184.216.34"), (destination, "93.184.216.34")],
             ) as validate,
             patch(
-                "coder79_agent._request_public_url",
+                "coder79.agent._request_public_url",
                 side_effect=[
                     (302, {"location": "/new"}, b""),
                     (200, {"content-type": "text/plain; charset=utf-8"}, b"Loaded page"),
@@ -113,7 +113,7 @@ class WorkspaceToolsTests(unittest.TestCase):
                 self.tools.fetch_url(url)
 
     def test_public_fetch_reports_certificate_validation_errors_without_disabling_tls(self):
-        with patch("coder79_agent.http.client.HTTPSConnection") as https_connection:
+        with patch("coder79.agent.http.client.HTTPSConnection") as https_connection:
             connection = https_connection.return_value
             connection.request.side_effect = ssl.SSLCertVerificationError(
                 "certificate verify failed"
@@ -163,7 +163,7 @@ class WorkspaceToolsTests(unittest.TestCase):
             },
             {"message": {"role": "assistant", "content": "The project has actual.txt."}},
         ]
-        with patch("coder79_agent._request_ollama", side_effect=responses):
+        with         patch("coder79.agent._request_ollama", side_effect=responses):
             messages = [{"role": "user", "content": "Inspect the project."}]
             answer = chat(self.tools, "coder79", "http://localhost:11434", messages)
 
@@ -182,7 +182,7 @@ class WorkspaceToolsTests(unittest.TestCase):
             {"message": {"role": "assistant", "content": ""}},
             {"message": {"role": "assistant", "content": "The workspace is ready."}},
         ]
-        with patch("coder79_agent._request_ollama", side_effect=responses):
+        with patch("coder79.agent._request_ollama", side_effect=responses):
             messages = [{"role": "user", "content": "Inspect the project."}]
             answer = chat(self.tools, "coder79", "http://localhost:11434", messages)
 
@@ -203,7 +203,7 @@ class WorkspaceToolsTests(unittest.TestCase):
             {"message": {"role": "assistant", "content": "The page is titled Example."}},
         ]
         with (
-            patch("coder79_agent._request_ollama", side_effect=responses),
+            patch("coder79.agent._request_ollama", side_effect=responses),
             patch.object(self.tools, "fetch_url", return_value="Title: Example"),
         ):
             messages = [

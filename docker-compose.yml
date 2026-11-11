@@ -1,14 +1,11 @@
-version: '3.8'
-
 services:
   ollama:
     image: ollama/ollama:latest
-    container_name: coder79model
     ports:
-      - "11434:11434"
+      - "127.0.0.1:11434:11434"
     volumes:
       - ./ollama_data:/root/.ollama
-      - ./coder79_slm_model:/app/model
+      - ./models/coder79:/app/model:ro
     deploy:
       resources:
         limits:
@@ -19,18 +16,26 @@ services:
     environment:
       - OLLAMA_NUM_PARALLEL=1 # Keep single-threaded execution queue clean
       - OLLAMA_NOPRINT=1
+      - OLLAMA_HOST=0.0.0.0:11434
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "ollama list >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
 
   ollama-webui:
     image: ghcr.io/open-webui/open-webui:main
     ports:
-      - "3000:8080"
+      - "127.0.0.1:3000:8080"
     environment:
       - OLLAMA_BASE_URL=http://ollama:11434
     volumes:
       - open-webui:/app/backend/data
     depends_on:
-      - ollama
+      ollama:
+        condition: service_healthy
     restart: unless-stopped
 
   coder79-model-init:
@@ -56,9 +61,10 @@ services:
     environment:
       - OLLAMA_HOST=http://ollama:11434
     volumes:
-      - ./coder79_slm_model:/app/model:ro
+      - ./models/coder79:/app/model:ro
     depends_on:
-      - ollama
+      ollama:
+        condition: service_healthy
     restart: "no"
 
   coder79-agent:
@@ -85,6 +91,16 @@ services:
       coder79-model-init:
         condition: service_completed_successfully
     restart: unless-stopped
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/v1/models', timeout=3).close()"
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
 volumes:
   open-webui:

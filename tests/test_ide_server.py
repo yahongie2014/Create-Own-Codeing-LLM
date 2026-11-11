@@ -1,13 +1,18 @@
+import json
 import tempfile
+import threading
 import unittest
 from pathlib import Path
+import urllib.request
 from unittest.mock import patch
+from http.server import ThreadingHTTPServer
 
-from coder79_agent import WorkspaceTools
-from coder79_ide_server import (
+from coder79.agent import WorkspaceTools
+from coder79.ide_server import (
     create_chat_completion,
     handle_mcp_message,
     openai_stream_chunks,
+    serve_openai,
 )
 
 
@@ -119,7 +124,7 @@ class IdeServerTests(unittest.TestCase):
         )
 
     def test_openai_chat_completion_uses_workspace_context(self):
-        with patch("coder79_ide_server.chat", return_value="Inspected the project.") as model_chat:
+        with patch("coder79.ide_server.chat", return_value="Inspected the project.") as model_chat:
             response = create_chat_completion(
                 {
                     "model": "coder79",
@@ -137,7 +142,7 @@ class IdeServerTests(unittest.TestCase):
 
     def test_openai_chat_completion_runs_the_ollama_agent_loop(self):
         with patch(
-            "coder79_agent._request_ollama",
+            "coder79.agent._request_ollama",
             return_value={"message": {"role": "assistant", "content": "Found the entry point."}},
         ) as ollama_request:
             response = create_chat_completion(
@@ -156,7 +161,7 @@ class IdeServerTests(unittest.TestCase):
         self.assertEqual(ollama_request.call_args.args[1], "coder79")
         self.assertIn("workspace", ollama_request.call_args.args[2][0]["content"])
 
-    def test_openai_endpoint_rejects_non_text_and_unsupported_tools(self):
+    def test_openai_endpoint_rejects_non_text_but_accepts_continue_tool_schemas(self):
         with self.assertRaisesRegex(ValueError, "text messages"):
             create_chat_completion(
                 {
@@ -178,13 +183,33 @@ class IdeServerTests(unittest.TestCase):
                 "coder79",
                 "http://localhost:11434",
             )
-        with self.assertRaisesRegex(ValueError, "function calling"):
-            create_chat_completion(
-                {"messages": [{"role": "user", "content": "Hi"}], "tools": [{"type": "function"}]},
+        with patch("coder79.ide_server.chat", return_value="I inspected the workspace.") as model_chat:
+            response = create_chat_completion(
+                {
+                    "messages": [{"role": "user", "content": "Hi"}],
+                    "tools": [
+                        {
+                            "type": "function",
+                            "function": {
+                                "name": "write_file",
+                                "description": "Write a file.",
+                                "parameters": {
+                                    "type": "object",
+                                    "properties": {"path": {"type": "string"}},
+                                },
+                            },
+                        }
+                    ],
+                },
                 self.workspace,
                 "coder79",
                 "http://localhost:11434",
             )
+        self.assertEqual(
+            response["choices"][0]["message"]["content"],
+            "I inspected the workspace.",
+        )
+        self.assertEqual(model_chat.call_args.args[0], self.workspace)
         with self.assertRaisesRegex(LookupError, "Model not found"):
             create_chat_completion(
                 {"model": [], "messages": [{"role": "user", "content": "Hi"}]},
@@ -192,6 +217,73 @@ class IdeServerTests(unittest.TestCase):
                 "coder79",
                 "http://localhost:11434",
             )
+
+    def test_openai_health_route_responds_while_chat_request_is_running(self):
+        server_ready = threading.Event()
+        chat_started = threading.Event()
+        release_chat = threading.Event()
+        server_holder = []
+        post_errors = []
+
+        def create_server(address, handler):
+            server = ThreadingHTTPServer(address, handler)
+            server_holder.append(server)
+            server_ready.set()
+            return server
+
+        def wait_for_chat(*_args):
+            chat_started.set()
+            if not release_chat.wait(timeout=5):
+                raise TimeoutError("Test chat request was not released.")
+            return "Completed."
+
+        with (
+            patch("coder79.ide_server.ThreadingHTTPServer", side_effect=create_server),
+            patch("coder79.ide_server.chat", side_effect=wait_for_chat),
+        ):
+            server_thread = threading.Thread(
+                target=serve_openai,
+                args=(self.workspace, "coder79", "http://localhost:11434", 0, "127.0.0.1"),
+                daemon=True,
+            )
+            server_thread.start()
+            self.assertTrue(server_ready.wait(timeout=5))
+            server = server_holder[0]
+            base_url = f"http://127.0.0.1:{server.server_address[1]}"
+            request = urllib.request.Request(
+                f"{base_url}/v1/chat/completions",
+                data=json.dumps(
+                    {
+                        "model": "coder79",
+                        "messages": [{"role": "user", "content": "Hi"}],
+                    }
+                ).encode(),
+                headers={"Content-Type": "application/json"},
+            )
+
+            def submit_chat():
+                try:
+                    with urllib.request.urlopen(request, timeout=5) as response:
+                        response.read()
+                except Exception as exc:
+                    post_errors.append(exc)
+
+            post_thread = threading.Thread(target=submit_chat)
+            post_thread.start()
+            try:
+                self.assertTrue(chat_started.wait(timeout=5))
+                with urllib.request.urlopen(f"{base_url}/v1/models", timeout=2) as response:
+                    self.assertEqual(response.status, 200)
+            finally:
+                release_chat.set()
+                post_thread.join(timeout=5)
+                server.shutdown()
+                server_thread.join(timeout=5)
+                server.server_close()
+
+        self.assertFalse(post_thread.is_alive())
+        self.assertFalse(server_thread.is_alive())
+        self.assertEqual(post_errors, [])
 
     def test_openai_stream_chunks_follow_chat_completion_format(self):
         chunks = openai_stream_chunks(

@@ -1,3 +1,4 @@
 **
-!coder79_agent.py
-!coder79_ide_server.py
+!Dockerfile.agent
+!coder79/
+!coder79/**

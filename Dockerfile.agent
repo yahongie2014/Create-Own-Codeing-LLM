@@ -5,11 +5,11 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-COPY coder79_agent.py coder79_ide_server.py ./
+COPY coder79/ ./coder79/
 
 RUN useradd --create-home --uid 10001 agent
 USER agent
 
 EXPOSE 8000
 
-ENTRYPOINT ["python", "/app/coder79_ide_server.py"]
+ENTRYPOINT ["python", "-m", "coder79.ide_server"]

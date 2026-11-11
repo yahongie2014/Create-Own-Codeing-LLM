@@ -1,6 +1,6 @@
 $ErrorActionPreference = "Stop"
 
-$modelDirectory = Join-Path $PSScriptRoot "coder79_slm_model"
+$modelDirectory = Join-Path $PSScriptRoot "models\coder79"
 $modelFile = Join-Path $modelDirectory "Modelfile"
 $baseModel = "qwen2.5-coder:3b"
 

@@ -7,11 +7,11 @@ import json
 import sys
 import time
 import uuid
-from http.server import BaseHTTPRequestHandler, HTTPServer
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
 
-from coder79_agent import SYSTEM_PROMPT, TOOLS, WorkspaceTools, chat
+from .agent import SYSTEM_PROMPT, TOOLS, WorkspaceTools, chat
 
 MCP_PROTOCOL_VERSION = "2025-03-26"
 MCP_SUPPORTED_PROTOCOL_VERSIONS = {"2025-03-26", "2024-11-05"}
@@ -193,11 +193,6 @@ def create_chat_completion(
         raise LookupError(f"Model not found. Configure the IDE to use '{model}'.")
     if not isinstance(request_body.get("stream", False), bool):
         raise ValueError("'stream' must be a boolean.")
-    if request_body.get("tools") or request_body.get("functions"):
-        raise ValueError(
-            "IDE-side function calling is not supported by this endpoint; "
-            "Coder79 runs its workspace tools internally."
-        )
     messages = _openai_messages(request_body.get("messages"), workspace)
     answer = chat(workspace, model, ollama_url, messages)
     return {
@@ -369,7 +364,7 @@ def serve_openai(
         def log_message(self, format_string: str, *args: Any) -> None:
             print(f"[http] {format_string % args}", file=sys.stderr)
 
-    server = HTTPServer((host, port), OpenAIHandler)
+    server = ThreadingHTTPServer((host, port), OpenAIHandler)
     print(
         f"Coder79 OpenAI-compatible API listening on http://{host}:{port}/v1 "
         f"(workspace: {workspace.root})",
