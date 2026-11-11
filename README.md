@@ -99,6 +99,11 @@ Training complete! GGUF model successfully saved to <project directory>\coder79_
 ```
 
 Training paths are resolved relative to `main.py`, so the script can be launched from a different working directory.
+The trainer creates a new timestamped output folder for each run. To restore a completed or interrupted run, pass its checkpoint directory, for example:
+
+```powershell
+python main.py --resume-from-checkpoint outputs\skills-run-<timestamp>\checkpoint-60
+```
 
 ## Exporting the Model
 
@@ -188,6 +193,8 @@ The service uses resource limits configured in `docker-compose.yml`:
 - Add validation and evaluation scripts for automatic quality checks.
 
 ## Quick Start
+
+On Windows, start Docker Desktop and double-click `start_and_test_coder79.bat` to start the Ollama container, register/update `coder79`, and run a quick inference check. Double-click `stop_coder79.bat` to stop the Ollama container without deleting the model or its saved data.
 
 Run the already-exported model from Docker:
 
