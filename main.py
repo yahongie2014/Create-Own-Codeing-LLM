@@ -137,6 +137,7 @@ if __name__ == "__main__":
 
     # 8. Save Locally & Export to GGUF (for Ollama)
     model_dir = project_dir / "coder79_slm_model"
+    model_dir.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="coder79-export-", dir=model_dir) as temp_dir:
         export_dir = Path(temp_dir) / "coder79"
         export_result = model.save_pretrained_gguf(

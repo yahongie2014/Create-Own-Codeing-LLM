@@ -194,7 +194,7 @@ The service uses resource limits configured in `docker-compose.yml`:
 
 ## Quick Start
 
-On Windows, start Docker Desktop and double-click `start_and_test_coder79.bat` to start the Ollama container, register/update `coder79`, and run a quick inference check. Double-click `stop_coder79.bat` to stop the Ollama container without deleting the model or its saved data.
+On Windows, start Docker Desktop and double-click `start_and_test_coder79.bat`. It checks the training inputs and GGUF; if the GGUF is missing, it creates the model folder and runs `python main.py`. Then it starts Ollama, creates the Modelfile if needed, registers or updates `coder79`, and runs an inference check. Training dependencies must already be installed for automatic training. Double-click `stop_coder79.bat` to stop the Ollama container without deleting the model or its saved data.
 
 Run the already-exported model from Docker:
 
