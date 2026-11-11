@@ -519,15 +519,17 @@ def _request_ollama(
     model: str,
     messages: list[dict[str, Any]],
     tools: list[dict[str, Any]] | None = None,
+    max_output_tokens: int | None = None,
 ) -> dict[str, Any]:
-    request_body = json.dumps(
-        {
-            "model": model,
-            "messages": messages,
-            "tools": TOOLS if tools is None else tools,
-            "stream": False,
-        }
-    ).encode("utf-8")
+    payload: dict[str, Any] = {
+        "model": model,
+        "messages": messages,
+        "tools": TOOLS if tools is None else tools,
+        "stream": False,
+    }
+    if max_output_tokens is not None:
+        payload["options"] = {"num_predict": max_output_tokens}
+    request_body = json.dumps(payload).encode("utf-8")
     request = urllib.request.Request(
         f"{base_url.rstrip('/')}/api/chat",
         data=request_body,
@@ -711,10 +713,13 @@ def chat(
     base_url: str,
     messages: list[dict[str, Any]],
     max_tool_rounds: int = 10,
+    max_output_tokens: int | None = None,
 ) -> str:
     response_requested = False
     for _ in range(max_tool_rounds + 2):
-        response = _request_ollama(base_url, model, messages)
+        response = _request_ollama(
+            base_url, model, messages, max_output_tokens=max_output_tokens
+        )
         assistant_message = response.get("message", {})
         tool_calls = assistant_message.get("tool_calls") or []
         text_calls = not tool_calls

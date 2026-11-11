@@ -138,6 +138,7 @@ class IdeServerTests(unittest.TestCase):
                     "model": "coder79",
                     "messages": [{"role": "user", "content": "Explain the project."}],
                     "tools": [],
+                    "max_tokens": 512,
                 },
                 self.workspace,
                 "coder79",
@@ -148,6 +149,7 @@ class IdeServerTests(unittest.TestCase):
         prompt = model_chat.call_args.args[3]
         self.assertIn("src/", prompt[0]["content"])
         self.assertEqual(prompt[-1], {"role": "user", "content": "Explain the project."})
+        self.assertEqual(model_chat.call_args.kwargs["max_output_tokens"], 512)
 
     def test_openai_chat_completion_runs_the_ollama_agent_loop(self):
         with patch(
@@ -188,6 +190,16 @@ class IdeServerTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "unsupported role"):
             create_chat_completion(
                 {"messages": [{"role": [], "content": "Hi"}]},
+                self.workspace,
+                "coder79",
+                "http://localhost:11434",
+            )
+        with self.assertRaisesRegex(ValueError, "Completion token limit"):
+            create_chat_completion(
+                {
+                    "messages": [{"role": "user", "content": "Hi"}],
+                    "max_tokens": 0,
+                },
                 self.workspace,
                 "coder79",
                 "http://localhost:11434",
@@ -246,6 +258,7 @@ class IdeServerTests(unittest.TestCase):
                         },
                     ],
                     "tools": [tool_schema],
+                    "max_completion_tokens": 512,
                 },
                 self.workspace,
                 "coder79",
@@ -260,6 +273,7 @@ class IdeServerTests(unittest.TestCase):
         )
         self.assertEqual(ollama_request.call_args.args[1], "coder79")
         self.assertEqual(ollama_request.call_args.kwargs["tools"], [tool_schema])
+        self.assertEqual(ollama_request.call_args.kwargs["max_output_tokens"], 512)
         messages = ollama_request.call_args.args[2]
         self.assertIn("currently open in the IDE", messages[0]["content"])
         self.assertIn("do not", messages[0]["content"])
@@ -351,7 +365,7 @@ class IdeServerTests(unittest.TestCase):
             server_ready.set()
             return server
 
-        def wait_for_chat(*_args):
+        def wait_for_chat(*_args, **_kwargs):
             chat_started.set()
             if not release_chat.wait(timeout=5):
                 raise TimeoutError("Test chat request was not released.")

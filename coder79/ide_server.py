@@ -24,6 +24,7 @@ MCP_PROTOCOL_VERSION = "2025-03-26"
 MCP_SUPPORTED_PROTOCOL_VERSIONS = {"2025-03-26", "2024-11-05"}
 MCP_MAX_MESSAGE_BYTES = 2 * 1024 * 1024
 OPENAI_MAX_REQUEST_BYTES = 2 * 1024 * 1024
+MAX_OPENAI_COMPLETION_TOKENS = 8192
 NATIVE_TOOL_SYSTEM_PROMPT = """You are Coder79, a coding assistant working on the project
 currently open in the IDE. Use the IDE-provided tools as the source of truth for
 that project. The server-side workspace may be a different folder: do not
@@ -315,6 +316,24 @@ def _openai_tool_calls(
     return tool_calls
 
 
+def _max_output_tokens(request_body: dict[str, Any]) -> int | None:
+    value = request_body.get("max_completion_tokens")
+    if value is None:
+        value = request_body.get("max_tokens")
+    if value is None:
+        return None
+    if (
+        isinstance(value, bool)
+        or not isinstance(value, int)
+        or not 1 <= value <= MAX_OPENAI_COMPLETION_TOKENS
+    ):
+        raise ValueError(
+            f"Completion token limit must be an integer from 1 to "
+            f"{MAX_OPENAI_COMPLETION_TOKENS}."
+        )
+    return value
+
+
 def create_chat_completion(
     request_body: Any,
     workspace: WorkspaceTools,
@@ -328,13 +347,20 @@ def create_chat_completion(
         raise LookupError(f"Model not found. Configure the IDE to use '{model}'.")
     if not isinstance(request_body.get("stream", False), bool):
         raise ValueError("'stream' must be a boolean.")
+    max_output_tokens = _max_output_tokens(request_body)
     requested_tools = request_body.get("tools")
     if requested_tools is not None and requested_tools != []:
         tools = _validate_openai_tools(requested_tools)
         messages = _openai_messages(
             request_body.get("messages"), workspace, preserve_tool_protocol=True
         )
-        response = _request_ollama(ollama_url, model, messages, tools=tools)
+        response = _request_ollama(
+            ollama_url,
+            model,
+            messages,
+            tools=tools,
+            max_output_tokens=max_output_tokens,
+        )
         assistant_message = (
             response.get("message") if isinstance(response, dict) else None
         )
@@ -372,7 +398,13 @@ def create_chat_completion(
             finish_reason = "stop"
     else:
         messages = _openai_messages(request_body.get("messages"), workspace)
-        answer = chat(workspace, model, ollama_url, messages)
+        answer = chat(
+            workspace,
+            model,
+            ollama_url,
+            messages,
+            max_output_tokens=max_output_tokens,
+        )
         completion_message = {"role": "assistant", "content": answer}
         finish_reason = "stop"
     return {

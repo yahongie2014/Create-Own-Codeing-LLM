@@ -169,7 +169,7 @@ The project includes [`.continue/config.yaml`](./.continue/config.yaml), an Open
 1. Install the Continue VS Code extension and open this project folder.
 2. Start the server with the **Start Coder79 for this workspace** task described below. Keep its terminal running.
 3. Open `%USERPROFILE%\.continue\config.yaml` from Continue's configuration selector. Create it from this template or merge the Coder79 model entry, then reload the configuration.
-4. Choose **Coder79** as the model and switch between Plan and Agent modes.
+4. Choose **Coder79** as the model and switch between Plan and Agent modes. Coder79 is configured for chat, edit, apply, and rerank. Local LLM reranking sends additional requests to the 3B model and may be slow on CPU. Continue's bundled `transformers.js` model provides local embeddings for codebase search; it does not use Coder79's chat endpoint.
 5. To enable inline completions, select **Qwen2.5-Coder 1.5B Autocomplete** as Continue's autocomplete model and make sure **Enable Tab Autocomplete** and VS Code's `editor.inlineSuggest.enabled` setting are on.
 
 Open the project you want to review in VS Code. Use Continue's Plan mode for read-only analysis and Agent mode for browsing files, editing, or running commands; normal Chat mode may not provide workspace tools. If Coder79 says it cannot see the project, verify the Coder79 config is loaded, the agent task is running, and Continue is in Agent mode. Ask it to list the project files as a quick tool-use check. Agent-mode tools run on the host and may edit files or run commands; review tool actions and workspace changes. The server's mounted workspace can differ from the open VS Code project, so Continue's IDE tools take precedence. Inline completions use the separate local Qwen2.5-Coder 1.5B model served by Ollama. Docker downloads this model along with the Coder79 base model during startup.
@@ -197,6 +197,8 @@ docker compose up -d --build coder79-agent
 ```
 
 The endpoint supports Chat Completions and streamed responses. Open WebUI requests use the agent's internal read-only workspace tools, scoped to the mounted workspace. VS Code Chat/Ask requests use VS Code's workspace tools because the custom model template enables tool calling; use the Continue configuration above for Plan and Agent modes. Direct `ollama run coder79` chat does not provide file or folder access. The agent container listens on its private Docker interface, but the host port is bound to `127.0.0.1`; do not change it to a public interface.
+
+Continue's configured `maxTokens` limit is forwarded to Ollama so unexpectedly long generations are capped instead of running past the editor's requested limit. Larger prompts and longer generated edits still take longer on CPU; select only the code needed for Edit and start a fresh chat when old context is no longer needed.
 
 #### MCP workspace tools
 

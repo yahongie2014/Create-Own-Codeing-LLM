@@ -1,13 +1,15 @@
+import json
 import tempfile
 import unittest
 from pathlib import Path
 import ssl
 import urllib.parse
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from coder79.agent import (
     SYSTEM_PROMPT,
     WorkspaceTools,
+    _request_ollama,
     _request_public_url,
     _text_tool_calls,
     chat,
@@ -49,6 +51,22 @@ class WorkspaceToolsTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "blocked"):
             self.tools.read_file(".env")
         self.assertTrue(self.tools.read_file("large.txt", max_chars=4).endswith("truncated)"))
+
+    def test_ollama_request_forwards_completion_limit(self):
+        response = MagicMock()
+        response.__enter__.return_value = response
+        response.read.return_value = b'{"message":{"role":"assistant","content":"OK"}}'
+
+        with patch("coder79.agent.urllib.request.urlopen", return_value=response) as urlopen:
+            _request_ollama(
+                "http://localhost:11434",
+                "coder79",
+                [{"role": "user", "content": "Reply."}],
+                max_output_tokens=512,
+            )
+
+        request = urlopen.call_args.args[0]
+        self.assertEqual(json.loads(request.data)["options"]["num_predict"], 512)
 
     def test_search_files_finds_text_and_skips_secret_files(self):
         (self.root / "app.py").write_text("def greet(): pass", encoding="utf-8")
