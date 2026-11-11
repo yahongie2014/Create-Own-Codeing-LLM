@@ -1,6 +1,6 @@
 # Custom Model Training Project
 
-This project serves a code-focused model through Ollama and provides an optional small-model fine-tuning pipeline. The default Coder79 service uses Qwen2.5-Coder 3B with the project's system instructions; optional local training remains a separate workflow.
+This project serves a code-focused model through Ollama and provides an optional small-model fine-tuning pipeline. The default Coder79 service uses Qwen2.5-Coder 3B with the project's system instructions; optional local training remains a separate workflow. Coder79's terminal and IDE agent integrations can also fetch public static web pages when given a URL.
 
 ## Overview
 
@@ -29,7 +29,7 @@ The default serving flow pulls `qwen2.5-coder:3b` from Ollama, then applies Code
 - `docker-compose.yml` — runs a local Ollama service
 - `ollama_data/` — persistent Ollama runtime data
 - `coder79_slm_model/` — exported model output (GGUF format)
-- `coder79_agent.py` — read-only terminal project explorer
+- `coder79_agent.py` — read-only terminal project explorer and public web page fetcher
 - `coder79_ide_server.py` — MCP and OpenAI-compatible IDE integration
 
 ## Prerequisites
@@ -158,7 +158,7 @@ Open the Ollama web interface at `http://localhost:3000`. It connects to the Oll
 
 ### Use Coder79 from an IDE
 
-The local IDE server connects an IDE to Ollama and scopes file access to one project folder you select. It uses Python's standard library; no extra packages are needed. Start Docker/Ollama first. There are two connection methods—use the one your IDE supports:
+The local IDE server connects an IDE to Ollama and scopes file access to one project folder you select. It uses Python's standard library; no extra packages are needed. Start Docker/Ollama first. In addition to workspace tools, Coder79 can fetch a public HTTP(S) URL to inspect static page text, headings, links, and common page landmarks. It does not search the web, sign in, execute JavaScript, or access local/private network destinations. Fetches use standard web ports, validate each redirect, and enforce timeout and response-size limits. This feature requires outbound network access from the agent process/container. There are two connection methods—use the one your IDE supports:
 
 #### Configure VS Code to use Coder79
 
@@ -206,7 +206,7 @@ Use this when the IDE supports MCP servers. MCP makes the read-only project tool
 }
 ```
 
-Restart or reconnect MCP servers after changing the configuration. The MCP server runs locally and reads files only under the configured workspace. Both methods provide tree listing, text search, and bounded file reads; common generated folders and likely credential files are excluded. IDEs differ, so use MCP where supported, or the OpenAI-compatible endpoint where custom model providers are supported.
+Restart or reconnect MCP servers after changing the configuration. The MCP server reads files only under the configured workspace and also offers the bounded public-page `fetch_url` tool. Both methods provide tree listing, text search, and bounded file reads; common generated folders and likely credential files are excluded. Direct `ollama run` chat does not provide these agent tools. IDEs differ, so use MCP where supported, or the OpenAI-compatible endpoint where custom model providers are supported.
 
 For terminal chat without an IDE, the simpler interactive client is still available:
 
@@ -252,7 +252,7 @@ The service uses resource limits configured in `docker-compose.yml`:
 - Updating the skill profile or datasets does not change model weights until `main.py` completes training and exports the GGUF. CPU training is supported by the installed Unsloth version but is substantially slower than GPU training.
 - The model export is done in GGUF format for compatibility with local inference tools such as Ollama.
 - Running the full training pipeline requires substantial memory and a compatible ML environment.
-- The Ollama model is a text-generation model, not an operating-system agent. The local terminal and IDE integrations provide read-only access to one explicitly selected workspace; the model cannot inspect other folders or edit or run project files.
+- The Ollama model is a text-generation model, not an operating-system agent. The local terminal and IDE integrations provide read-only access to one explicitly selected workspace and a public static-page fetch tool; they cannot edit or run project files, search the web, or access private/local network URLs.
 - The training examples and model prompt request concise explanations, not hidden chain-of-thought or `<think>` output.
 
 ## Suggested Next Steps

@@ -1,6 +1,7 @@
 import tempfile
 import unittest
 from pathlib import Path
+import urllib.parse
 from unittest.mock import patch
 
 from coder79_agent import WorkspaceTools, _text_tool_calls, chat
@@ -48,6 +49,68 @@ class WorkspaceToolsTests(unittest.TestCase):
         self.assertIn("app.py:1:", result)
         self.assertNotIn(".env", result)
 
+    def test_fetch_url_extracts_static_page_structure_and_visible_content(self):
+        parsed_url = urllib.parse.urlsplit("https://example.com/")
+        markup = (
+            "<html><head><title>Example site</title>"
+            '<meta name="description" content="A sample page"></head>'
+            '<body><nav><a href="/about">About us</a></nav><main><h1>Welcome</h1>'
+            "<p>Public page content.</p><script>ignore this</script></main></body></html>"
+        ).encode()
+        with (
+            patch.object(
+                self.tools,
+                "_validate_public_url",
+                return_value=(parsed_url, "93.184.216.34"),
+            ),
+            patch(
+                "coder79_agent._request_public_url",
+                return_value=(200, {"content-type": "text/html; charset=utf-8"}, markup),
+            ),
+        ):
+            result = self.tools.fetch_url("https://example.com/")
+
+        self.assertIn("Title: Example site", result)
+        self.assertIn("Description: A sample page", result)
+        self.assertIn("Page structure: nav, main", result)
+        self.assertIn("Headings: Welcome", result)
+        self.assertIn("About us: https://example.com/about", result)
+        self.assertIn("Public page content.", result)
+        self.assertNotIn("ignore this", result)
+
+    def test_fetch_url_validates_each_public_redirect(self):
+        start = urllib.parse.urlsplit("https://example.com/")
+        destination = urllib.parse.urlsplit("https://example.com/new")
+        with (
+            patch.object(
+                self.tools,
+                "_validate_public_url",
+                side_effect=[(start, "93.184.216.34"), (destination, "93.184.216.34")],
+            ) as validate,
+            patch(
+                "coder79_agent._request_public_url",
+                side_effect=[
+                    (302, {"location": "/new"}, b""),
+                    (200, {"content-type": "text/plain; charset=utf-8"}, b"Loaded page"),
+                ],
+            ),
+        ):
+            result = self.tools.fetch_url("https://example.com/")
+
+        self.assertIn("URL: https://example.com/new", result)
+        self.assertIn("Loaded page", result)
+        self.assertEqual(validate.call_count, 2)
+
+    def test_fetch_url_rejects_non_public_or_non_web_targets(self):
+        for url in (
+            "file:///etc/passwd",
+            "http://127.0.0.1/",
+            "http://user:password@example.com/",
+            "https://example.com:8443/",
+        ):
+            with self.subTest(url=url), self.assertRaises(ValueError):
+                self.tools.fetch_url(url)
+
     def test_text_tool_call_parser_accepts_only_known_calls(self):
         response = (
             '<tools>{"type":"function","function":{"name":"list_tree"}}</tools>\n'
@@ -63,6 +126,10 @@ class WorkspaceToolsTests(unittest.TestCase):
             '{"name":"read_file","arguments":{"path":"README.md"}}'
         )
         self.assertEqual(json_only_call[0]["function"]["name"], "read_file")
+        web_call = _text_tool_calls(
+            '{"name":"fetch_url","arguments":{"url":"https://example.com/"}}'
+        )
+        self.assertEqual(web_call[0]["function"]["name"], "fetch_url")
         self.assertEqual(_text_tool_calls('{"name":"run_command","arguments":{}}'), [])
         self.assertEqual(_text_tool_calls('{"name":[],"arguments":{}}'), [])
 
@@ -105,6 +172,32 @@ class WorkspaceToolsTests(unittest.TestCase):
 
         self.assertEqual(answer, "The workspace is ready.")
         self.assertIn("tool results", messages[-2]["content"])
+
+    def test_chat_uses_actual_web_tool_result(self):
+        responses = [
+            {
+                "message": {
+                    "role": "assistant",
+                    "content": (
+                        '{"name":"fetch_url","arguments":'
+                        '{"url":"https://example.com/"}}'
+                    ),
+                }
+            },
+            {"message": {"role": "assistant", "content": "The page is titled Example."}},
+        ]
+        with (
+            patch("coder79_agent._request_ollama", side_effect=responses),
+            patch.object(self.tools, "fetch_url", return_value="Title: Example"),
+        ):
+            messages = [
+                {"role": "user", "content": "Analyze https://example.com/"}
+            ]
+            answer = chat(self.tools, "coder79", "http://localhost:11434", messages)
+
+        self.assertEqual(answer, "The page is titled Example.")
+        self.assertIn("Web tool result from fetch_url:", str(messages))
+        self.assertIn("Title: Example", str(messages))
 
 
 if __name__ == "__main__":

@@ -60,10 +60,30 @@ class IdeServerTests(unittest.TestCase):
 
         self.assertEqual(
             [tool["name"] for tool in tools_response["result"]["tools"]],
-            ["list_tree", "read_file", "search_files"],
+            ["list_tree", "read_file", "search_files", "fetch_url"],
         )
         self.assertIn("print('hello')", call_response["result"]["content"][0]["text"])
         self.assertFalse(call_response["result"]["isError"])
+
+    def test_mcp_fetch_url_tool_is_available(self):
+        with patch.object(self.workspace, "fetch_url", return_value="Title: Example"):
+            response = handle_mcp_message(
+                {
+                    "jsonrpc": "2.0",
+                    "id": 6,
+                    "method": "tools/call",
+                    "params": {
+                        "name": "fetch_url",
+                        "arguments": {"url": "https://example.com/"},
+                    },
+                },
+                self.workspace,
+                "coder79",
+                "http://localhost:11434",
+            )
+
+        self.assertIn("Title: Example", response["result"]["content"][0]["text"])
+        self.assertFalse(response["result"]["isError"])
 
     def test_mcp_notifications_have_no_response(self):
         response = handle_mcp_message(
