@@ -1,5 +1,6 @@
 import unsloth  # MUST be the absolute first import
 
+import argparse
 import json
 import os
 import tempfile
@@ -12,6 +13,17 @@ from unsloth import FastLanguageModel, get_chat_template
 
 if __name__ == "__main__":
     project_dir = Path(__file__).resolve().parent
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--resume-from-checkpoint",
+        type=Path,
+        help="Resume training or export from a saved Trainer checkpoint.",
+    )
+    args = parser.parse_args()
+    if args.resume_from_checkpoint is not None and not args.resume_from_checkpoint.is_dir():
+        raise FileNotFoundError(
+            f"Checkpoint directory does not exist: {args.resume_from_checkpoint}"
+        )
 
     try:
         datasets = import_module("datasets")
@@ -115,7 +127,13 @@ if __name__ == "__main__":
     )
 
     # 7. Execute Training
-    trainer_stats = trainer.train()
+    trainer_stats = trainer.train(
+        resume_from_checkpoint=(
+            str(args.resume_from_checkpoint)
+            if args.resume_from_checkpoint is not None
+            else None
+        )
+    )
 
     # 8. Save Locally & Export to GGUF (for Ollama)
     model_dir = project_dir / "coder79_slm_model"
@@ -126,9 +144,17 @@ if __name__ == "__main__":
             tokenizer,
             quantization_method="q4_k_m",
         )
+        if isinstance(export_result, dict):
+            export_paths = export_result.get("gguf_files", [])
+        elif isinstance(export_result, (list, tuple)):
+            export_paths = export_result
+        else:
+            raise RuntimeError(
+                f"Unexpected GGUF exporter result: {type(export_result).__name__}."
+            )
         exported_models = [
             Path(path)
-            for path in export_result.get("gguf_files", [])
+            for path in export_paths
             if Path(path).is_file() and Path(path).stat().st_size > 0
         ]
         if len(exported_models) != 1:
