@@ -1,6 +1,6 @@
 # Custom Model Training Project
 
-This project serves a code-focused model through Ollama and provides an optional small-model fine-tuning pipeline. The default Coder79 service uses Qwen2.5-Coder 7B with the project's system instructions; optional local training remains a separate workflow.
+This project serves a code-focused model through Ollama and provides an optional small-model fine-tuning pipeline. The default Coder79 service uses Qwen2.5-Coder 3B with the project's system instructions; optional local training remains a separate workflow.
 
 ## Overview
 
@@ -13,14 +13,14 @@ The project uses:
 - Unsloth for efficient LoRA fine-tuning
 - Ollama for local model serving
 
-The default serving flow pulls `qwen2.5-coder:7b` from Ollama, then applies Coder79's system instructions and serves it under the `coder79` name. The optional training flow in `main.py` remains separate:
+The default serving flow pulls `qwen2.5-coder:3b` from Ollama, then applies Coder79's system instructions and serves it under the `coder79` name. The optional training flow in `main.py` remains separate:
 
 1. Loads the `Qwen/Qwen2.5-Coder-1.5B-Instruct` model.
 2. Applies LoRA adapters for efficient fine-tuning.
 3. Loads the chat-style datasets and skill-profile examples.
 4. Formats the dataset using the Qwen chat template.
 5. Trains the model using supervised fine-tuning.
-6. Exports the trained model to the `coder79_slm_model` directory in GGUF format. This output does not replace the default 7B serving model.
+6. Exports the trained model to the `coder79_slm_model` directory in GGUF format. This output does not replace the default 3B serving model.
 
 ## Repository Structure
 
@@ -34,7 +34,7 @@ The default serving flow pulls `qwen2.5-coder:7b` from Ollama, then applies Code
 
 ## Prerequisites
 
-To run Coder79, install and start Docker Desktop and make sure it is running. Internet access is needed on first startup to download the 7B model. You do not need Python or the training packages for standard Ollama chat. Python 3.10+ is needed to run the local file-navigation agent; it uses only the standard library. Training packages are needed only for the separate optional fine-tuning workflow:
+To run Coder79, install and start Docker Desktop and make sure it is running. Internet access is needed on first startup to download the 3B model. You do not need Python or the training packages for standard Ollama chat. Python 3.10+ is needed to run the local file-navigation agent; it uses only the standard library. Training packages are needed only for the separate optional fine-tuning workflow:
 
 ```bash
 python -m pip install torch datasets trl unsloth
@@ -83,14 +83,14 @@ The checked-in datasets provide 31 training conversations: 9 core coding, 6 adva
 
 ### Applying and training updated skills
 
-The serving model and its system prompt are configured by `write_coder79_modelfile.ps1`. The startup batch file regenerates the Modelfile, pulls the 7B base if needed, registers `coder79`, and starts the WebUI and IDE agent. To perform these steps manually:
+The serving model and its system prompt are configured by `write_coder79_modelfile.ps1`. The startup batch file regenerates the Modelfile, pulls the 3B base if needed, registers `coder79`, and starts the WebUI and IDE agent. To perform these steps manually:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\write_coder79_modelfile.ps1
 docker compose up -d --build ollama-webui coder79-agent
 ```
 
-The 7B base is substantially larger than the previous 1.5B model, so local CPU inference may be slower. The optional `python main.py` training pipeline still fine-tunes the 1.5B base; its output is not automatically used by the default Coder79 service.
+The 3B base is a speed-focused compromise for CPU-only local use; it is smaller and generally responds faster than the previously configured 7B model, though with less capacity. The optional `python main.py` training pipeline still fine-tunes the 1.5B base; its output is not automatically used by the default Coder79 service.
 
 ## How the Script Works
 

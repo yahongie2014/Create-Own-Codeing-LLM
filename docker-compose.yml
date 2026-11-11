@@ -42,7 +42,16 @@ services:
       - |
         set -eu
         until ollama list >/dev/null 2>&1; do sleep 2; done
-        ollama pull qwen2.5-coder:7b
+        attempt=1
+        until ollama pull qwen2.5-coder:3b; do
+          if [ "$$attempt" -ge 5 ]; then
+            echo "Failed to download qwen2.5-coder:3b after 5 attempts." >&2
+            exit 1
+          fi
+          echo "Model download failed (attempt $$attempt/5); retrying in 10 seconds." >&2
+          attempt=$$((attempt + 1))
+          sleep 10
+        done
         ollama create coder79 -f /app/model/Modelfile
     environment:
       - OLLAMA_HOST=http://ollama:11434

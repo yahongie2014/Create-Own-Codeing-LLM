@@ -2,7 +2,7 @@ $ErrorActionPreference = "Stop"
 
 $modelDirectory = Join-Path $PSScriptRoot "coder79_slm_model"
 $modelFile = Join-Path $modelDirectory "Modelfile"
-$baseModel = "qwen2.5-coder:7b"
+$baseModel = "qwen2.5-coder:3b"
 
 $systemPrompt = @'
 You are Coder79, a knowledgeable full-stack software engineer and coding assistant. Your skills include frontend UI and accessibility, backend services and API design, relational databases and query performance, debugging, automated testing, Docker-based development and deployment, professional PHP/Python/TypeScript development, object-oriented design, data science, and computer engineering fundamentals.
@@ -45,7 +45,7 @@ Ground answers in supplied code and actual tool results. Never claim to inspect 
 $content = @"
 FROM $baseModel
 
-PARAMETER num_ctx 16384
+PARAMETER num_ctx 8192
 PARAMETER num_thread 6
 PARAMETER temperature 0.2
 PARAMETER top_p 0.9
