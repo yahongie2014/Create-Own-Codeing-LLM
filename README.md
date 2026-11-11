@@ -135,6 +135,8 @@ Invoke-RestMethod -Uri "http://localhost:11434/api/generate" `
     -Method Post -ContentType "application/json" -Body $body
 ```
 
+Open the Ollama web interface at `http://localhost:3000`. It connects to the Ollama service automatically, and its application data is persisted in the `open-webui` Docker volume.
+
 The Ollama model is stored in `ollama_data`, so you only need to run `ollama create` again if that data is removed or the GGUF file changes. Stop the container with:
 
 ```powershell
