@@ -10,39 +10,15 @@ if errorlevel 1 (
     exit /b 1
 )
 
-set "GGUF_FILE=coder79_slm_model\coder79_slm_model.Q4_K_M.gguf"
-set "TRAINING_DATA_MISSING="
-for %%F in (main.py coding_dataset.jsonl coding_dataset_php.jsonl coding_dataset_advanced.jsonl coding_skills.json) do (
-    if not exist "%%F" (
-        echo ERROR: Required training file was not found: %%F
-        set "TRAINING_DATA_MISSING=1"
-    )
-)
-if defined TRAINING_DATA_MISSING exit /b 1
-
-set "MODEL_WAS_TRAINED="
-if not exist "%GGUF_FILE%" (
-    echo GGUF model was not found. Preparing model folder and running training...
-    if not exist "coder79_slm_model" mkdir "coder79_slm_model"
-    where python >nul 2>&1
-    if errorlevel 1 (
-        echo ERROR: Python was not found on PATH. Install Python and training dependencies.
-        exit /b 1
-    )
-    python main.py
-    if errorlevel 1 (
-        echo ERROR: python main.py failed. The Docker model will not be started.
-        exit /b 1
-    )
-    if not exist "%GGUF_FILE%" (
-        echo ERROR: Training finished without creating "%GGUF_FILE%".
-        exit /b 1
-    )
-    set "MODEL_WAS_TRAINED=1"
+echo Preparing the Coder79 model instructions...
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0write_coder79_modelfile.ps1"
+if errorlevel 1 (
+    echo ERROR: Could not write the Coder79 Modelfile.
+    exit /b 1
 )
 
-echo Starting the coder79model container...
-docker compose up -d ollama ollama-webui
+echo Starting Ollama, the WebUI, and the Coder79 agent...
+docker compose up -d ollama ollama-webui coder79-agent
 if errorlevel 1 (
     echo ERROR: Could not start the Ollama Docker services.
     exit /b 1
@@ -64,36 +40,6 @@ docker compose logs --tail=40 ollama
 exit /b 1
 
 :ollama_ready
-if not defined MODEL_WAS_TRAINED (
-    docker compose exec -T ollama ollama list | findstr /B /C:"coder79:latest" >nul
-    if not errorlevel 1 (
-        echo Found existing coder79 model. Skipping model creation.
-        goto :test_model
-    )
-)
-
-if not exist "coder79_slm_model\Modelfile" (
-    echo Modelfile was not found. Preparing it from the Coder79 skills prompt...
-    powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0write_coder79_modelfile.ps1"
-    if errorlevel 1 (
-        echo ERROR: Could not write the Coder79 Modelfile.
-        exit /b 1
-    )
-)
-
-if defined MODEL_WAS_TRAINED (
-    echo Training completed. Registering the newly trained coder79 model...
-    goto :create_model
-)
-
-:create_model
-echo Registering the coder79 model...
-docker compose exec -T --workdir /app/model ollama ollama create coder79 -f Modelfile
-if errorlevel 1 (
-    echo ERROR: Could not register the coder79 model.
-    exit /b 1
-)
-
 :test_model
 echo Running a quick inference test...
 docker compose exec -T ollama ollama run coder79 "Reply with exactly: Coder79 test passed."

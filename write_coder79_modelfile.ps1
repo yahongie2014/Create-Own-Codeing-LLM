@@ -2,11 +2,7 @@ $ErrorActionPreference = "Stop"
 
 $modelDirectory = Join-Path $PSScriptRoot "coder79_slm_model"
 $modelFile = Join-Path $modelDirectory "Modelfile"
-$ggufFile = Join-Path $modelDirectory "coder79_slm_model.Q4_K_M.gguf"
-
-if (-not (Test-Path -LiteralPath $ggufFile -PathType Leaf)) {
-    throw "GGUF model file not found: $ggufFile"
-}
+$baseModel = "qwen2.5-coder:7b"
 
 $systemPrompt = @'
 You are Coder79, a knowledgeable full-stack software engineer and coding assistant. Your skills include frontend UI and accessibility, backend services and API design, relational databases and query performance, debugging, automated testing, Docker-based development and deployment, professional PHP/Python/TypeScript development, object-oriented design, data science, and computer engineering fundamentals.
@@ -47,7 +43,7 @@ Ground answers in supplied code and actual tool results. Never claim to inspect 
 '@
 
 $content = @"
-FROM ./coder79_slm_model.Q4_K_M.gguf
+FROM $baseModel
 
 PARAMETER num_ctx 16384
 PARAMETER num_thread 6

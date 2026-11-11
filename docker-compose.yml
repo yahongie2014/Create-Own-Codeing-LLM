@@ -42,9 +42,8 @@ services:
       - |
         set -eu
         until ollama list >/dev/null 2>&1; do sleep 2; done
-        if ! ollama list | grep -q '^coder79:'; then
-          ollama create coder79 -f /app/model/Modelfile
-        fi
+        ollama pull qwen2.5-coder:7b
+        ollama create coder79 -f /app/model/Modelfile
     environment:
       - OLLAMA_HOST=http://ollama:11434
     volumes:
