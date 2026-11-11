@@ -49,7 +49,7 @@ The training data is stored in JSON Lines format (`coding_dataset.jsonl`). Each 
 ```json
 {
   "messages": [
-    {"role": "system", "content": "You are an expert full-stack engineer."},
+    {"role": "system", "content": "You are Coder79, a knowledgeable full-stack software engineer."},
     {"role": "user", "content": "Write a Python function to parse JSON."},
     {"role": "assistant", "content": "```python\nimport json\n...\n```"}
   ]
@@ -112,24 +112,24 @@ This folder is also mounted into the container defined in `docker-compose.yml`. 
 
 ## Run the Model with Docker
 
-The exported GGUF file and `Modelfile` are mounted into the Ollama container by `docker-compose.yml`. In PowerShell, from the project root, start the container and register the model:
+The exported GGUF file and `Modelfile` are mounted into the Ollama container by `docker-compose.yml`. The Docker container is named `coder79model`, and the Ollama model is named `coder79`. In PowerShell, from the project root, start the container and register the model:
 
 ```powershell
 docker compose up -d
-docker compose exec --workdir /app/model ollama ollama create coder79_slm_model -f Modelfile
+docker compose exec --workdir /app/model ollama ollama create coder79 -f Modelfile
 ```
 
 Open an interactive chat:
 
 ```powershell
-docker compose exec -it ollama ollama run coder79_slm_model
+docker compose exec -it ollama ollama run coder79
 ```
 
 The Ollama API is available at `http://localhost:11434`. To generate a response from PowerShell:
 
 ```powershell
 $body = @{
-    model = "coder79_slm_model"
+    model = "coder79"
     prompt = "Write a Python function to parse JSON safely."
     stream = $false
 } | ConvertTo-Json
@@ -151,14 +151,14 @@ docker compose down
 After changing the GGUF file or settings in `coder79_slm_model/Modelfile`, recreate the registered model:
 
 ```powershell
-docker compose exec ollama ollama rm coder79_slm_model
-docker compose exec --workdir /app/model ollama ollama create coder79_slm_model -f Modelfile
+docker compose exec ollama ollama rm coder79
+docker compose exec --workdir /app/model ollama ollama create coder79 -f Modelfile
 ```
 
 To remove the model from Ollama without deleting the source GGUF file or `Modelfile`:
 
 ```powershell
-docker compose exec ollama ollama rm coder79_slm_model
+docker compose exec ollama ollama rm coder79
 ```
 
 This removes the registered model from Ollama's `ollama_data`; the source files in `coder79_slm_model/` remain available to register it again.
@@ -192,8 +192,8 @@ Run the already-exported model from Docker:
 
 ```powershell
 docker compose up -d
-docker compose exec --workdir /app/model ollama ollama create coder79_slm_model -f Modelfile
-docker compose exec -it ollama ollama run coder79_slm_model
+docker compose exec --workdir /app/model ollama ollama create coder79 -f Modelfile
+docker compose exec -it ollama ollama run coder79
 ```
 
 To train/export a new model first, install the training dependencies and run `python main.py`; then repeat the Docker commands above.
