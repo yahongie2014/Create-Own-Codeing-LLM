@@ -29,12 +29,12 @@ The main training flow is implemented in `main.py` and performs the following st
 - `docker-compose.yml` — runs a local Ollama service
 - `ollama_data/` — persistent Ollama runtime data
 - `coder79_slm_model/` — exported model output (GGUF format)
+- `coder79_agent.py` — read-only terminal project explorer
+- `coder79_ide_server.py` — MCP and OpenAI-compatible IDE integration
 
 ## Prerequisites
 
-To run the exported model, install and start Docker Desktop and make sure it is running. You do not need Python or the training packages to run the existing GGUF model.
-
-Python 3.10+ and the training dependencies are only needed if you want to train or export the model again:
+To run the exported model, install and start Docker Desktop and make sure it is running. You do not need Python or the training packages for standard Ollama chat. Python 3.10+ is needed to run the local file-navigation agent; it uses only the standard library. Training packages are needed only if you want to train or export the model again:
 
 ```bash
 python -m pip install torch datasets trl unsloth
@@ -145,6 +145,58 @@ Invoke-RestMethod -Uri "http://localhost:11434/api/generate" `
 
 Open the Ollama web interface at `http://localhost:3000`. It connects to the Ollama service automatically, and its application data is persisted in the `open-webui` Docker volume.
 
+### Use Coder79 from an IDE
+
+The local IDE server connects an IDE to Ollama and scopes file access to one project folder you select. It uses Python's standard library; no extra packages are needed. Start Docker/Ollama first. There are two connection methods—use the one your IDE supports:
+
+#### OpenAI-compatible Coder79 model
+
+Use this when the IDE lets you configure a local OpenAI-compatible model provider. Start one server for the project you want to open:
+
+```powershell
+python C:\path\to\customModel\coder79_ide_server.py --transport openai --workspace "C:\path\to\your\project"
+```
+
+In the IDE's custom provider settings, use:
+
+- Base URL: `http://127.0.0.1:8000/v1`
+- Model: `coder79`
+- API key: any placeholder value if the IDE requires one; this local server does not use it
+
+The endpoint supports `/v1/models`, chat completions, and OpenAI-compatible SSE responses (chunks are sent after local generation finishes). Coder79 receives the selected project's tree and can search/read files through its internal read-only tools. The IDE can apply code that Coder79 suggests, but this server does not write or run project files. Image input and IDE-supplied function calling are not supported. The server listens on localhost only; do not expose it to a network.
+
+#### MCP workspace tools
+
+Use this when the IDE supports MCP servers. MCP makes the read-only project tools available to that IDE's selected assistant model; by itself, it does not switch that assistant to Coder79. Add this server to the IDE's MCP configuration (for example, `.vscode/mcp.json` in the project you want to open), replacing the script path with this repository's actual location:
+
+```json
+{
+  "servers": {
+    "coder79": {
+      "type": "stdio",
+      "command": "python",
+      "args": [
+        "C:\\path\\to\\customModel\\coder79_ide_server.py",
+        "--transport",
+        "mcp",
+        "--workspace",
+        "${workspaceFolder}"
+      ]
+    }
+  }
+}
+```
+
+Restart or reconnect MCP servers after changing the configuration. The MCP server runs locally and reads files only under the configured workspace. Both methods provide tree listing, text search, and bounded file reads; common generated folders and likely credential files are excluded. IDEs differ, so use MCP where supported, or the OpenAI-compatible endpoint where custom model providers are supported.
+
+For terminal chat without an IDE, the simpler interactive client is still available:
+
+```powershell
+python coder79_agent.py "C:\path\to\your\project"
+```
+
+It uses the `coder79` model by default. Type `/exit` to end the chat; use `--model` or `--ollama-url` to select another model or Ollama server.
+
 The Ollama model is stored in `ollama_data`, so you only need to run `ollama create` again if that data is removed or the GGUF file changes. Stop the container with:
 
 ```powershell
@@ -181,7 +233,7 @@ The service uses resource limits configured in `docker-compose.yml`:
 - Updating the skill profile or datasets does not change model weights until `main.py` completes training and exports the GGUF. CPU training is supported by the installed Unsloth version but is substantially slower than GPU training.
 - The model export is done in GGUF format for compatibility with local inference tools such as Ollama.
 - Running the full training pipeline requires substantial memory and a compatible ML environment.
-- The Ollama model is a text-generation model, not an operating-system agent. It cannot browse or edit arbitrary local files unless a separate application explicitly supplies those files or connects authorized tools. The system prompt asks it to be honest about this limitation and to ground repository guidance in provided context.
+- The Ollama model is a text-generation model, not an operating-system agent. The local terminal and IDE integrations provide read-only access to one explicitly selected workspace; the model cannot inspect other folders or edit or run project files.
 - The training examples and model prompt request concise explanations, not hidden chain-of-thought or `<think>` output.
 
 ## Suggested Next Steps
