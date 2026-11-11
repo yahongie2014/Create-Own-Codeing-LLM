@@ -10,6 +10,7 @@ models:
     apiKey: local-only
     roles:
       - chat
+      - edit
     capabilities:
       - tool_use
     defaultCompletionOptions:
