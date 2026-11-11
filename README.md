@@ -149,21 +149,33 @@ Open the Ollama web interface at `http://localhost:3000`. It connects to the Oll
 
 The local IDE server connects an IDE to Ollama and scopes file access to one project folder you select. It uses Python's standard library; no extra packages are needed. Start Docker/Ollama first. There are two connection methods—use the one your IDE supports:
 
-#### OpenAI-compatible Coder79 model
+#### Configure VS Code to use Coder79
 
-Use this when the IDE lets you configure a local OpenAI-compatible model provider. Start one server for the project you want to open:
+This repository includes a VS Code task and a copy-ready custom model entry:
+
+- `.vscode/tasks.json` builds and starts the Docker Coder79 agent, scoped to the currently opened workspace.
+- `.vscode/coder79-chatLanguageModels.json` is a template for registering the model in your VS Code user profile.
+
+1. Open this `customModel` folder in VS Code. Make sure Docker Desktop is running:
+
+   ```powershell
+   docker compose up -d ollama
+   ```
+
+2. Press `Ctrl+Shift+P`, run **Tasks: Run Task**, then select **Start Coder79 for this workspace**. Docker builds the agent image, mounts the selected workspace read-only, and connects to Ollama over the Compose network. Leave the task terminal running; press `Ctrl+C` there or run `docker compose stop coder79-agent` to stop the IDE agent.
+
+3. Run **Chat: Manage Language Models** from the Command Palette, select **Add Models** → **Custom Endpoint**, and choose **Chat Completions**. When VS Code opens its `chatLanguageModels.json` user-profile file, copy the contents of `.vscode/coder79-chatLanguageModels.json` into that file and save. If VS Code already has providers in the array, add the `Coder79 Local` object rather than replacing them.
+
+4. Open the Chat view, select **Coder79** from the model picker, and use Chat/Ask mode.
+
+VS Code stores model providers in your user profile, not in this project, so importing the template is a one-time per-profile setup. The included task mounts the currently opened folder into the agent container. For another project, run Docker Compose from this `customModel` folder and set `WORKSPACE_PATH` to the project folder first:
 
 ```powershell
-python C:\path\to\customModel\coder79_ide_server.py --transport openai --workspace "C:\path\to\your\project"
+$env:WORKSPACE_PATH = (Resolve-Path "C:\path\to\your\project").Path
+docker compose up -d --build coder79-agent
 ```
 
-In the IDE's custom provider settings, use:
-
-- Base URL: `http://127.0.0.1:8000/v1`
-- Model: `coder79`
-- API key: any placeholder value if the IDE requires one; this local server does not use it
-
-The endpoint supports `/v1/models`, chat completions, and OpenAI-compatible SSE responses (chunks are sent after local generation finishes). Coder79 receives the selected project's tree and can search/read files through its internal read-only tools. The IDE can apply code that Coder79 suggests, but this server does not write or run project files. Image input and IDE-supplied function calling are not supported. The server listens on localhost only; do not expose it to a network.
+The endpoint supports Chat Completions and streamed responses. Coder79 gets the mounted workspace tree and has internal read-only search/read tools. **This setup is for Chat/Ask, not autonomous Agent/Edit mode**: the model does not expose VS Code's editing tools or write files. The agent container listens on its private Docker interface, but the host port is bound to `127.0.0.1`; do not change it to a public interface.
 
 #### MCP workspace tools
 

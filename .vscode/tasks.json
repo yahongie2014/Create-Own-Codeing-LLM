@@ -1,0 +1,29 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Start Coder79 for this workspace",
+      "type": "process",
+      "command": "docker",
+      "args": [
+        "compose",
+        "up",
+        "--build",
+        "coder79-agent"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "env": {
+          "WORKSPACE_PATH": "${workspaceFolder}"
+        }
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      },
+      "detail": "Builds and starts the Docker IDE agent for this workspace on http://127.0.0.1:8000/v1."
+    }
+  ]
+}

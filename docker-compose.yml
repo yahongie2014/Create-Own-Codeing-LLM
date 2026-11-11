@@ -33,5 +33,29 @@ services:
       - ollama
     restart: unless-stopped
 
+  coder79-agent:
+    build:
+      context: .
+      dockerfile: Dockerfile.agent
+    command:
+      - --transport
+      - openai
+      - --workspace
+      - /workspace
+      - --ollama-url
+      - http://ollama:11434
+      - --host
+      - 0.0.0.0
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - type: bind
+        source: ${WORKSPACE_PATH:-.}
+        target: /workspace
+        read_only: true
+    depends_on:
+      - ollama
+    restart: unless-stopped
+
 volumes:
   open-webui:

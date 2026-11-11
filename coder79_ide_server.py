@@ -269,6 +269,7 @@ def serve_openai(
     model: str,
     ollama_url: str,
     port: int,
+    host: str = "127.0.0.1",
 ) -> None:
     class OpenAIHandler(BaseHTTPRequestHandler):
         server_version = "Coder79IDE/1.0"
@@ -368,9 +369,9 @@ def serve_openai(
         def log_message(self, format_string: str, *args: Any) -> None:
             print(f"[http] {format_string % args}", file=sys.stderr)
 
-    server = HTTPServer(("127.0.0.1", port), OpenAIHandler)
+    server = HTTPServer((host, port), OpenAIHandler)
     print(
-        f"Coder79 OpenAI-compatible API listening on http://127.0.0.1:{port}/v1 "
+        f"Coder79 OpenAI-compatible API listening on http://{host}:{port}/v1 "
         f"(workspace: {workspace.root})",
         file=sys.stderr,
     )
@@ -405,6 +406,11 @@ def main() -> None:
         help="Ollama server URL.",
     )
     parser.add_argument("--port", type=int, default=8000, help="OpenAI API port (default: 8000).")
+    parser.add_argument(
+        "--host",
+        default="127.0.0.1",
+        help="OpenAI API bind address (default: 127.0.0.1).",
+    )
     args = parser.parse_args()
 
     workspace = WorkspaceTools(args.workspace)
@@ -413,7 +419,7 @@ def main() -> None:
     else:
         if not 1 <= args.port <= 65535:
             parser.error("--port must be between 1 and 65535.")
-        serve_openai(workspace, args.model, args.ollama_url, args.port)
+        serve_openai(workspace, args.model, args.ollama_url, args.port, args.host)
 
 
 if __name__ == "__main__":
