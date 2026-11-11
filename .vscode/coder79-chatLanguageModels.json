@@ -9,7 +9,7 @@
         "id": "coder79",
         "name": "Coder79",
         "url": "http://127.0.0.1:8000/v1/chat/completions",
-        "toolCalling": false,
+        "toolCalling": true,
         "maxInputTokens": 14336,
         "maxOutputTokens": 2048
       }

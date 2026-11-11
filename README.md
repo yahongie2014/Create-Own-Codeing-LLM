@@ -185,7 +185,7 @@ This repository includes a VS Code task and a copy-ready custom model entry:
 
 3. Run **Chat: Manage Language Models** from the Command Palette, select **Add Models** → **Custom Endpoint**, and choose **Chat Completions**. When VS Code opens its `chatLanguageModels.json` user-profile file, copy the contents of `.vscode/coder79-chatLanguageModels.json` into that file and save. If VS Code already has providers in the array, add the `Coder79 Local` object rather than replacing them.
 
-4. Open the Chat view, select **Coder79** from the model picker, and use Chat/Ask mode.
+4. Open the Chat view, select **Coder79** from the model picker, and use Chat/Ask mode. The custom model entry enables tool calling so Coder79 can use VS Code's workspace tools to inspect files in the currently open folder.
 
 VS Code stores model providers in your user profile, not in this project, so importing the template is a one-time per-profile setup. The included task mounts the currently opened folder into the agent container. For another project, run Docker Compose from this `customModel` folder and set `WORKSPACE_PATH` to the project folder first:
 
@@ -194,7 +194,7 @@ $env:WORKSPACE_PATH = (Resolve-Path "C:\path\to\your\project").Path
 docker compose up -d --build coder79-agent
 ```
 
-The endpoint supports Chat Completions and streamed responses. Coder79 gets the mounted workspace tree and has internal read-only search/read tools. The VS Code custom model template is for Chat/Ask; use the Continue configuration above for Plan and Agent modes. The agent container listens on its private Docker interface, but the host port is bound to `127.0.0.1`; do not change it to a public interface.
+The endpoint supports Chat Completions and streamed responses. Open WebUI requests use the agent's internal read-only workspace tools, scoped to the mounted workspace. VS Code Chat/Ask requests use VS Code's workspace tools because the custom model template enables tool calling; use the Continue configuration above for Plan and Agent modes. Direct `ollama run coder79` chat does not provide file or folder access. The agent container listens on its private Docker interface, but the host port is bound to `127.0.0.1`; do not change it to a public interface.
 
 #### MCP workspace tools
 

@@ -27,6 +27,14 @@ class IdeServerTests(unittest.TestCase):
     def tearDown(self):
         self.temporary_directory.cleanup()
 
+    def test_vscode_model_template_enables_workspace_tool_calling(self):
+        config_path = Path(__file__).parents[1] / ".vscode" / "coder79-chatLanguageModels.json"
+        config = json.loads(config_path.read_text(encoding="utf-8-sig"))
+
+        model = config[0]["models"][0]
+        self.assertEqual(model["id"], "coder79")
+        self.assertTrue(model["toolCalling"])
+
     def test_mcp_initialize_advertises_tools_and_workspace_instructions(self):
         response = handle_mcp_message(
             {
