@@ -24,3 +24,19 @@ models:
         Create a concise, evidence-based implementation plan. Inspect relevant
         workspace files using available read-only tools. Do not edit files or
         run terminal commands.
+
+  - name: Qwen2.5-Coder 1.5B Autocomplete
+    provider: ollama
+    model: qwen2.5-coder:1.5b
+    apiBase: http://127.0.0.1:11434
+    roles:
+      - autocomplete
+    defaultCompletionOptions:
+      contextLength: 2048
+      maxTokens: 128
+      temperature: 0.1
+    autocompleteOptions:
+      disable: false
+      maxPromptTokens: 1024
+      debounceDelay: 250
+      onlyMyCode: true

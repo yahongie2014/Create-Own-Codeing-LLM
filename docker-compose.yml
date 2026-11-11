@@ -30,11 +30,13 @@ services:
     ports:
       - "127.0.0.1:3000:8080"
     environment:
-      - OLLAMA_BASE_URL=http://ollama:11434
+      - ENABLE_OLLAMA_API=false
+      - OPENAI_API_BASE_URLS=http://coder79-agent:8000/v1
+      - OPENAI_API_KEYS=local-only
     volumes:
       - open-webui:/app/backend/data
     depends_on:
-      ollama:
+      coder79-agent:
         condition: service_healthy
     restart: unless-stopped
 
@@ -47,16 +49,21 @@ services:
       - |
         set -eu
         until ollama list >/dev/null 2>&1; do sleep 2; done
-        attempt=1
-        until ollama pull qwen2.5-coder:3b; do
-          if [ "$$attempt" -ge 5 ]; then
-            echo "Failed to download qwen2.5-coder:3b after 5 attempts." >&2
-            exit 1
-          fi
-          echo "Model download failed (attempt $$attempt/5); retrying in 10 seconds." >&2
-          attempt=$$((attempt + 1))
-          sleep 10
-        done
+        pull_model() {
+          model="$$1"
+          attempt=1
+          until ollama pull "$$model"; do
+            if [ "$$attempt" -ge 5 ]; then
+              echo "Failed to download $$model after 5 attempts." >&2
+              exit 1
+            fi
+            echo "$$model download failed (attempt $$attempt/5); retrying in 10 seconds." >&2
+            attempt=$$((attempt + 1))
+            sleep 10
+          done
+        }
+        pull_model qwen2.5-coder:3b
+        pull_model qwen2.5-coder:1.5b
         ollama create coder79 -f /app/model/Modelfile
     environment:
       - OLLAMA_HOST=http://ollama:11434

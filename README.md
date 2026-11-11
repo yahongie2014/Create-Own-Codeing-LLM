@@ -154,7 +154,7 @@ Invoke-RestMethod -Uri "http://localhost:11434/api/generate" `
     -Method Post -ContentType "application/json" -Body $body
 ```
 
-Open the Ollama web interface at `http://localhost:3000`. It connects to the Ollama service automatically, and its application data is persisted in the `open-webui` Docker volume. Ollama, Open WebUI, and the IDE endpoint publish ports on loopback only (`127.0.0.1`) by default, so they are not exposed to other network devices.
+Open WebUI at `http://localhost:3000`, sign in, and select the `coder79` model. Open WebUI routes model requests through the Coder79 agent, which calls Ollama and provides its read-only workspace/web tools; it does not connect directly to Ollama. The workspace is the path in `WORKSPACE_PATH` (the repository root by default). Open WebUI application data is persisted in the `open-webui` Docker volume. Ollama, Open WebUI, and the IDE endpoint publish ports on loopback only (`127.0.0.1`) by default, so they are not exposed to other network devices.
 
 ### Use Coder79 from an IDE
 
@@ -162,14 +162,15 @@ The local IDE server connects an IDE to Ollama and scopes file access to one pro
 
 #### Configure Continue for Plan and Agent modes
 
-The project includes [`.continue/config.yaml`](./.continue/config.yaml), an OpenAI-compatible Continue model configuration. Continue loads its YAML configuration from `%USERPROFILE%\.continue\config.yaml` on Windows. Copy the template there if you do not have a config yet; if one already exists, merge the model entry from the template into its `models` list instead of replacing your existing settings. The model uses the `chat` role and advertises `tool_use`, which Continue requires to make Plan and Agent modes available:
+The project includes [`.continue/config.yaml`](./.continue/config.yaml), an OpenAI-compatible Continue model configuration pointing to the same agent endpoint used by Open WebUI. Continue loads its YAML configuration from `%USERPROFILE%\.continue\config.yaml` on Windows. Copy the template there if you do not have a config yet; if one already exists, merge the model entry from the template into its `models` list instead of replacing your existing settings. The model uses the `chat` role and advertises `tool_use`, which Continue requires to make Plan and Agent modes available:
 
 1. Install the Continue VS Code extension and open this project folder.
 2. Start the server with the **Start Coder79 for this workspace** task described below. Keep its terminal running.
 3. Open `%USERPROFILE%\.continue\config.yaml` from Continue's configuration selector. Create it from this template or merge the Coder79 model entry, then reload the configuration.
 4. Choose **Coder79** as the model and switch between Plan and Agent modes.
+5. To enable inline completions, select **Qwen2.5-Coder 1.5B Autocomplete** as Continue's autocomplete model and make sure **Enable Tab Autocomplete** and VS Code's `editor.inlineSuggest.enabled` setting are on.
 
-Plan and Agent use Coder79's built-in, read-only workspace and public-page tools. Continue-provided editing, file-writing, and terminal tools are not executed; ask Coder79 for recommended changes rather than expecting it to modify files. The project is mounted read-only in Docker.
+Plan and Agent use Coder79's built-in, read-only workspace and public-page tools. Continue-provided editing, file-writing, and terminal tools are not executed; ask Coder79 for recommended changes rather than expecting it to modify files. Inline completions use the separate local Qwen2.5-Coder 1.5B model served by Ollama. Docker downloads this model along with the Coder79 base model during startup. The project is mounted read-only in Docker.
 
 #### Configure VS Code to use Coder79
 
