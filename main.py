@@ -121,16 +121,20 @@ if __name__ == "__main__":
     model_dir = project_dir / "coder79_slm_model"
     with tempfile.TemporaryDirectory(prefix="coder79-export-", dir=model_dir) as temp_dir:
         export_dir = Path(temp_dir) / "coder79"
-        model.save_pretrained_gguf(
+        export_result = model.save_pretrained_gguf(
             str(export_dir),
             tokenizer,
             quantization_method="q4_k_m",
         )
-        exported_models = list(Path(temp_dir).glob("*.gguf"))
-        if len(exported_models) != 1 or exported_models[0].stat().st_size == 0:
+        exported_models = [
+            Path(path)
+            for path in export_result.get("gguf_files", [])
+            if Path(path).is_file() and Path(path).stat().st_size > 0
+        ]
+        if len(exported_models) != 1:
             raise RuntimeError(
-                f"Expected one non-empty GGUF export in {temp_dir}, "
-                f"found {len(exported_models)}."
+                "Expected one non-empty GGUF export, "
+                f"found {len(exported_models)} in {export_dir}."
             )
         os.replace(
             exported_models[0],
