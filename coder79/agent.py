@@ -27,6 +27,7 @@ IGNORED_DIRECTORIES = {
     "build",
     "dist",
     "node_modules",
+    "ollama_data",
     "venv",
 }
 SECRET_NAMES = {

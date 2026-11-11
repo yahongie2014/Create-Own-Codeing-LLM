@@ -28,12 +28,15 @@ class WorkspaceToolsTests(unittest.TestCase):
         (self.root / "src" / "app.py").write_text("print('hello')", encoding="utf-8")
         (self.root / "node_modules").mkdir()
         (self.root / "node_modules" / "package.js").write_text("", encoding="utf-8")
+        (self.root / "ollama_data").mkdir()
+        (self.root / "ollama_data" / "runtime.db").write_text("private runtime data", encoding="utf-8")
 
         tree = self.tools.list_tree(max_depth=3)
 
         self.assertIn("src/", tree)
         self.assertIn("app.py", tree)
         self.assertNotIn("node_modules", tree)
+        self.assertNotIn("ollama_data", tree)
 
     def test_read_file_rejects_paths_outside_workspace(self):
         with self.assertRaisesRegex(ValueError, "outside"):

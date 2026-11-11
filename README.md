@@ -93,6 +93,8 @@ docker compose up -d --build ollama-webui coder79-agent
 
 The 3B base is a speed-focused compromise for CPU-only local use; it is smaller and generally responds faster than the previously configured 7B model, though with less capacity. The optional `python -m coder79.train` pipeline still fine-tunes the 1.5B base; its output is not automatically used by the default Coder79 service.
 
+The generated Ollama `Modelfile` keeps the serving system prompt compact so CPU inference spends less time processing repeated instructions. After changing it, regenerate the file and recreate the `coder79` model as described above.
+
 ## How the Script Works
 
 The script follows a straightforward workflow:
@@ -170,7 +172,7 @@ The project includes [`.continue/config.yaml`](./.continue/config.yaml), an Open
 4. Choose **Coder79** as the model and switch between Plan and Agent modes.
 5. To enable inline completions, select **Qwen2.5-Coder 1.5B Autocomplete** as Continue's autocomplete model and make sure **Enable Tab Autocomplete** and VS Code's `editor.inlineSuggest.enabled` setting are on.
 
-Open the project you want to review in VS Code, then use Continue's Plan mode for a read-only analysis or Agent mode when you also want requested fixes applied. The model is instructed to inspect that open project using Continue's available tools, check available diagnostics and existing tests or build commands, and report findings with file and line evidence. Agent-mode tools run on the host and may edit files or run commands; review tool actions and workspace changes. The server's own mounted workspace can differ from the open VS Code project, so the IDE tools take precedence for Continue requests. Inline completions use the separate local Qwen2.5-Coder 1.5B model served by Ollama. Docker downloads this model along with the Coder79 base model during startup.
+Open the project you want to review in VS Code. Use Continue's Plan mode for read-only analysis and Agent mode for browsing files, editing, or running commands; normal Chat mode may not provide workspace tools. If Coder79 says it cannot see the project, verify the Coder79 config is loaded, the agent task is running, and Continue is in Agent mode. Ask it to list the project files as a quick tool-use check. Agent-mode tools run on the host and may edit files or run commands; review tool actions and workspace changes. The server's mounted workspace can differ from the open VS Code project, so Continue's IDE tools take precedence. Inline completions use the separate local Qwen2.5-Coder 1.5B model served by Ollama. Docker downloads this model along with the Coder79 base model during startup.
 
 #### Configure VS Code to use Coder79
 

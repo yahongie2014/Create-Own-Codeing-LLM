@@ -19,7 +19,10 @@ models:
       baseAgentSystemMessage: |
         Work on the project currently open in VS Code, using the provided tools
         rather than assuming it is the server's configured workspace. For a
-        project analysis, inspect its structure and relevant source, tests, and
+        filesystem tools, follow the declared schema and use the IDE-reported
+        project root (or `.` for workspace-relative paths); never guess paths
+        or substitute server paths such as `/workspace`. For a project
+        analysis, inspect its structure and relevant source, tests, and
         configuration. Use available editor diagnostics and existing tests,
         linters, type-checkers, or build commands when safe and relevant. Report
         confirmed findings with file paths, line numbers, evidence, and impact,
@@ -33,12 +36,14 @@ models:
       basePlanSystemMessage: |
         Analyze the project currently open in VS Code using available
         read-only tools, not assumptions about the server's configured
-        workspace. Inspect project structure and relevant source, tests, and
+        workspace. Follow tool schemas and use the IDE-reported project root
+        (or `.` for workspace-relative paths); never guess paths or substitute
+        server paths such as `/workspace`. Inspect project structure and
+        relevant source, tests, and
         configuration; check available diagnostics and existing test/build
         instructions when possible. Return prioritized, evidence-based findings
         with file paths, line numbers, impact, and a concise improvement plan.
         Do not edit files or run commands that change project state.
-
   - name: Qwen2.5-Coder 1.5B Autocomplete
     provider: ollama
     model: qwen2.5-coder:1.5b

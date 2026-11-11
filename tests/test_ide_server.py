@@ -263,6 +263,7 @@ class IdeServerTests(unittest.TestCase):
         messages = ollama_request.call_args.args[2]
         self.assertIn("currently open in the IDE", messages[0]["content"])
         self.assertIn("do not", messages[0]["content"])
+        self.assertIn("Never guess filesystem paths", messages[0]["content"])
         self.assertNotIn(str(self.workspace.root), messages[0]["content"])
         self.assertNotIn("Initial workspace tree", messages[0]["content"])
         self.assertEqual(
