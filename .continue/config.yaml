@@ -47,13 +47,6 @@ models:
         instructions when possible. Return prioritized, evidence-based findings
         with file paths, line numbers, impact, and a concise improvement plan.
         Do not edit files or run commands that change project state.
-  - name: Local Codebase Embeddings
-    provider: transformers.js
-    roles:
-      - embed
-    embedOptions:
-      maxChunkSize: 512
-      maxBatchSize: 16
   - name: Qwen2.5-Coder 1.5B Autocomplete
     provider: ollama
     model: qwen2.5-coder:1.5b
