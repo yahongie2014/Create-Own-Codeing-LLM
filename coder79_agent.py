@@ -577,7 +577,12 @@ def _request_public_url(
         if len(body) > MAX_WEB_RESPONSE_BYTES:
             raise ValueError("Website response exceeds the 1 MB size limit.")
         return response.status, headers, body
-    except http.client.HTTPException as exc:
+    except ssl.SSLCertVerificationError as exc:
+        raise ValueError(
+            "Website TLS certificate validation failed. Configure a trusted CA "
+            "bundle with SSL_CERT_FILE; certificate checks cannot be disabled."
+        ) from exc
+    except (http.client.HTTPException, ssl.SSLError) as exc:
         raise ValueError(f"Website request failed: {exc}") from exc
     finally:
         connection.close()

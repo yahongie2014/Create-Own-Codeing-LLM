@@ -1,10 +1,11 @@
 import tempfile
 import unittest
 from pathlib import Path
+import ssl
 import urllib.parse
 from unittest.mock import patch
 
-from coder79_agent import WorkspaceTools, _text_tool_calls, chat
+from coder79_agent import WorkspaceTools, _request_public_url, _text_tool_calls, chat
 
 
 class WorkspaceToolsTests(unittest.TestCase):
@@ -110,6 +111,21 @@ class WorkspaceToolsTests(unittest.TestCase):
         ):
             with self.subTest(url=url), self.assertRaises(ValueError):
                 self.tools.fetch_url(url)
+
+    def test_public_fetch_reports_certificate_validation_errors_without_disabling_tls(self):
+        with patch("coder79_agent.http.client.HTTPSConnection") as https_connection:
+            connection = https_connection.return_value
+            connection.request.side_effect = ssl.SSLCertVerificationError(
+                "certificate verify failed"
+            )
+
+            with self.assertRaisesRegex(ValueError, "TLS certificate validation failed"):
+                _request_public_url(
+                    urllib.parse.urlsplit("https://example.com/"),
+                    "93.184.216.34",
+                )
+
+        connection.close.assert_called_once()
 
     def test_text_tool_call_parser_accepts_only_known_calls(self):
         response = (

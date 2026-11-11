@@ -158,7 +158,7 @@ Open the Ollama web interface at `http://localhost:3000`. It connects to the Oll
 
 ### Use Coder79 from an IDE
 
-The local IDE server connects an IDE to Ollama and scopes file access to one project folder you select. It uses Python's standard library; no extra packages are needed. Start Docker/Ollama first. In addition to workspace tools, Coder79 can fetch a public HTTP(S) URL to inspect static page text, headings, links, and common page landmarks. It does not search the web, sign in, execute JavaScript, or access local/private network destinations. Fetches use standard web ports, validate each redirect, and enforce timeout and response-size limits. This feature requires outbound network access from the agent process/container. There are two connection methods—use the one your IDE supports:
+The local IDE server connects an IDE to Ollama and scopes file access to one project folder you select. It uses Python's standard library; no extra packages are needed. Start Docker/Ollama first. In addition to workspace tools, Coder79 can fetch a public HTTP(S) URL to inspect static page text, headings, links, and common page landmarks. It does not search the web, sign in, execute JavaScript, or access local/private network destinations. Fetches use standard web ports, validate each redirect, and enforce timeout and response-size limits. This feature requires outbound network access and a trusted TLS certificate chain from the agent process/container. If your environment uses a private certificate authority, set `SSL_CERT_FILE` to its trusted CA bundle; certificate verification is never disabled. There are two connection methods—use the one your IDE supports:
 
 #### Configure VS Code to use Coder79
 
