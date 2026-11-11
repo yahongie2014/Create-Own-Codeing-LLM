@@ -162,7 +162,7 @@ The local IDE server connects an IDE to Ollama and scopes file access to one pro
 
 #### Configure Continue for Plan and Agent modes
 
-The project includes [`.continue/config.yaml`](./.continue/config.yaml), an OpenAI-compatible Continue model configuration pointing to the same agent endpoint used by Open WebUI. Continue loads its YAML configuration from `%USERPROFILE%\.continue\config.yaml` on Windows. Copy the template there if you do not have a config yet; if one already exists, merge the model entry from the template into its `models` list instead of replacing your existing settings. The model uses the `chat` role and advertises `tool_use`, which Continue requires to make Plan and Agent modes available:
+The project includes [`.continue/config.yaml`](./.continue/config.yaml), an OpenAI-compatible Continue model configuration pointing to the same agent endpoint used by Open WebUI. Continue loads its YAML configuration from `%USERPROFILE%\.continue\config.yaml` on Windows. Copy the template there if you do not have a config yet; if one already exists, merge the model entry from the template into its `models` list instead of replacing your existing settings. The model uses the `chat` role and advertises `tool_use`. The endpoint accepts Continue function-tool schemas and returns OpenAI-compatible tool calls for Continue to execute:
 
 1. Install the Continue VS Code extension and open this project folder.
 2. Start the server with the **Start Coder79 for this workspace** task described below. Keep its terminal running.
@@ -170,7 +170,7 @@ The project includes [`.continue/config.yaml`](./.continue/config.yaml), an Open
 4. Choose **Coder79** as the model and switch between Plan and Agent modes.
 5. To enable inline completions, select **Qwen2.5-Coder 1.5B Autocomplete** as Continue's autocomplete model and make sure **Enable Tab Autocomplete** and VS Code's `editor.inlineSuggest.enabled` setting are on.
 
-Plan and Agent use Coder79's built-in, read-only workspace and public-page tools. Continue-provided editing, file-writing, and terminal tools are not executed; ask Coder79 for recommended changes rather than expecting it to modify files. Inline completions use the separate local Qwen2.5-Coder 1.5B model served by Ollama. Docker downloads this model along with the Coder79 base model during startup. The project is mounted read-only in Docker.
+Open the project you want to review in VS Code, then use Continue's Plan mode for a read-only analysis or Agent mode when you also want requested fixes applied. The model is instructed to inspect that open project using Continue's available tools, check available diagnostics and existing tests or build commands, and report findings with file and line evidence. Agent-mode tools run on the host and may edit files or run commands; review tool actions and workspace changes. The server's own mounted workspace can differ from the open VS Code project, so the IDE tools take precedence for Continue requests. Inline completions use the separate local Qwen2.5-Coder 1.5B model served by Ollama. Docker downloads this model along with the Coder79 base model during startup.
 
 #### Configure VS Code to use Coder79
 
@@ -194,7 +194,7 @@ $env:WORKSPACE_PATH = (Resolve-Path "C:\path\to\your\project").Path
 docker compose up -d --build coder79-agent
 ```
 
-The endpoint supports Chat Completions and streamed responses. Coder79 gets the mounted workspace tree and has internal read-only search/read tools. The VS Code custom model template is for Chat/Ask; use the Continue configuration above for its Plan and read-only Agent modes. The agent container listens on its private Docker interface, but the host port is bound to `127.0.0.1`; do not change it to a public interface.
+The endpoint supports Chat Completions and streamed responses. Coder79 gets the mounted workspace tree and has internal read-only search/read tools. The VS Code custom model template is for Chat/Ask; use the Continue configuration above for Plan and Agent modes. The agent container listens on its private Docker interface, but the host port is bound to `127.0.0.1`; do not change it to a public interface.
 
 #### MCP workspace tools
 

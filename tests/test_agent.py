@@ -149,6 +149,19 @@ class WorkspaceToolsTests(unittest.TestCase):
         self.assertEqual(_text_tool_calls('{"name":"run_command","arguments":{}}'), [])
         self.assertEqual(_text_tool_calls('{"name":[],"arguments":{}}'), [])
 
+    def test_text_tool_call_parser_accepts_continue_tool_schemas_and_unwraps_arguments(self):
+        response = (
+            '{"name":"greet","arguments":{"name":'
+            '{"type":"string","value":"Ada"}}}'
+        )
+
+        calls = _text_tool_calls(response, {"greet"})
+
+        self.assertEqual(
+            calls,
+            [{"function": {"name": "greet", "arguments": {"name": "Ada"}}}],
+        )
+
     def test_chat_uses_actual_tool_result_instead_of_textual_fake_result(self):
         (self.root / "actual.txt").write_text("workspace evidence", encoding="utf-8")
         responses = [

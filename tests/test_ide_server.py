@@ -129,6 +129,7 @@ class IdeServerTests(unittest.TestCase):
                 {
                     "model": "coder79",
                     "messages": [{"role": "user", "content": "Explain the project."}],
+                    "tools": [],
                 },
                 self.workspace,
                 "coder79",
@@ -161,7 +162,7 @@ class IdeServerTests(unittest.TestCase):
         self.assertEqual(ollama_request.call_args.args[1], "coder79")
         self.assertIn("workspace", ollama_request.call_args.args[2][0]["content"])
 
-    def test_openai_endpoint_rejects_non_text_but_accepts_continue_tool_schemas(self):
+    def test_openai_endpoint_rejects_invalid_messages_and_preserves_continue_tools(self):
         with self.assertRaisesRegex(ValueError, "text messages"):
             create_chat_completion(
                 {
@@ -183,16 +184,122 @@ class IdeServerTests(unittest.TestCase):
                 "coder79",
                 "http://localhost:11434",
             )
-        with patch("coder79.ide_server.chat", return_value="I inspected the workspace.") as model_chat:
+        tool_schema = {
+            "type": "function",
+            "function": {
+                "name": "write_file",
+                "description": "Write a file.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {"path": {"type": "string"}},
+                },
+            },
+        }
+        with patch(
+            "coder79.ide_server._request_ollama",
+            return_value={
+                "message": {
+                    "role": "assistant",
+                    "content": "",
+                    "tool_calls": [
+                        {
+                            "function": {
+                                "name": "write_file",
+                                "arguments": {"path": "src/app.py"},
+                            }
+                        }
+                    ],
+                }
+            },
+        ) as ollama_request:
             response = create_chat_completion(
                 {
+                    "messages": [
+                        {"role": "user", "content": "Update this file."},
+                        {
+                            "role": "assistant",
+                            "content": None,
+                            "tool_calls": [
+                                {
+                                    "id": "call_previous",
+                                    "type": "function",
+                                    "function": {
+                                        "name": "read_file",
+                                        "arguments": '{"path":"src/app.py"}',
+                                    },
+                                }
+                            ],
+                        },
+                        {
+                            "role": "tool",
+                            "tool_call_id": "call_previous",
+                            "name": "read_file",
+                            "content": "print('hello')",
+                        },
+                    ],
+                    "tools": [tool_schema],
+                },
+                self.workspace,
+                "coder79",
+                "http://localhost:11434",
+            )
+        completion = response["choices"][0]
+        self.assertEqual(completion["finish_reason"], "tool_calls")
+        self.assertEqual(completion["message"]["tool_calls"][0]["function"]["name"], "write_file")
+        self.assertEqual(
+            json.loads(completion["message"]["tool_calls"][0]["function"]["arguments"]),
+            {"path": "src/app.py"},
+        )
+        self.assertEqual(ollama_request.call_args.args[1], "coder79")
+        self.assertEqual(ollama_request.call_args.kwargs["tools"], [tool_schema])
+        messages = ollama_request.call_args.args[2]
+        self.assertIn("currently open in the IDE", messages[0]["content"])
+        self.assertIn("do not", messages[0]["content"])
+        self.assertNotIn(str(self.workspace.root), messages[0]["content"])
+        self.assertNotIn("Initial workspace tree", messages[0]["content"])
+        self.assertEqual(
+            messages[-2]["tool_calls"][0]["function"]["arguments"],
+            {"path": "src/app.py"},
+        )
+        self.assertEqual(messages[-1], {"role": "tool", "content": "print('hello')", "tool_name": "read_file"})
+        streamed = openai_stream_chunks(response)
+        self.assertEqual(
+            streamed[-1]["choices"][0]["finish_reason"], "tool_calls"
+        )
+        self.assertEqual(
+            streamed[1]["choices"][0]["delta"]["tool_calls"][0]["function"]["name"],
+            "write_file",
+        )
+        with self.assertRaisesRegex(ValueError, "function tool"):
+            create_chat_completion(
+                {
                     "messages": [{"role": "user", "content": "Hi"}],
+                    "tools": [{"type": "computer"}],
+                },
+                self.workspace,
+                "coder79",
+                "http://localhost:11434",
+            )
+        with patch(
+            "coder79.ide_server._request_ollama",
+            return_value={
+                "message": {
+                    "role": "assistant",
+                    "content": (
+                        '{"name":"read_file","arguments":{"path":'
+                        '{"type":"string","value":"src/app.py"}}}'
+                    ),
+                }
+            },
+        ):
+            text_call_response = create_chat_completion(
+                {
+                    "messages": [{"role": "user", "content": "Read the file."}],
                     "tools": [
                         {
                             "type": "function",
                             "function": {
-                                "name": "write_file",
-                                "description": "Write a file.",
+                                "name": "read_file",
                                 "parameters": {
                                     "type": "object",
                                     "properties": {"path": {"type": "string"}},
@@ -205,11 +312,15 @@ class IdeServerTests(unittest.TestCase):
                 "coder79",
                 "http://localhost:11434",
             )
+        text_call = text_call_response["choices"][0]
+        self.assertEqual(text_call["finish_reason"], "tool_calls")
+        self.assertIsNone(text_call["message"]["content"])
         self.assertEqual(
-            response["choices"][0]["message"]["content"],
-            "I inspected the workspace.",
+            json.loads(
+                text_call["message"]["tool_calls"][0]["function"]["arguments"]
+            ),
+            {"path": "src/app.py"},
         )
-        self.assertEqual(model_chat.call_args.args[0], self.workspace)
         with self.assertRaisesRegex(LookupError, "Model not found"):
             create_chat_completion(
                 {"model": [], "messages": [{"role": "user", "content": "Hi"}]},

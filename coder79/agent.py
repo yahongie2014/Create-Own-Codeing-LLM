@@ -515,9 +515,15 @@ def _request_ollama(
     base_url: str,
     model: str,
     messages: list[dict[str, Any]],
+    tools: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     request_body = json.dumps(
-        {"model": model, "messages": messages, "tools": TOOLS, "stream": False}
+        {
+            "model": model,
+            "messages": messages,
+            "tools": TOOLS if tools is None else tools,
+            "stream": False,
+        }
     ).encode("utf-8")
     request = urllib.request.Request(
         f"{base_url.rstrip('/')}/api/chat",
@@ -596,7 +602,10 @@ def _response_charset(content_type: str) -> str:
     return "utf-8"
 
 
-def _text_tool_calls(content: str) -> list[dict[str, Any]]:
+def _text_tool_calls(
+    content: str,
+    allowed_names: set[str] = TOOL_NAMES,
+) -> list[dict[str, Any]]:
     """Parse explicit text-form tool requests emitted by models without native calls."""
     decoder = json.JSONDecoder()
     stripped = content.strip()
@@ -610,7 +619,7 @@ def _text_tool_calls(content: str) -> list[dict[str, Any]]:
         pass
     else:
         if not stripped[end:].strip():
-            call = _normalize_text_tool_call(request)
+            call = _normalize_text_tool_call(request, allowed_names)
             if call is not None:
                 return [call]
 
@@ -632,7 +641,7 @@ def _text_tool_calls(content: str) -> list[dict[str, Any]]:
         except json.JSONDecodeError:
             position = end + len(close_marker)
             continue
-        call = _normalize_text_tool_call(request)
+        call = _normalize_text_tool_call(request, allowed_names)
         if call is not None:
             tagged_calls.append(call)
         position = end + len(close_marker)
@@ -655,21 +664,42 @@ def _text_tool_calls(content: str) -> list[dict[str, Any]]:
             except json.JSONDecodeError:
                 position = start + 1
                 continue
-            call = _normalize_text_tool_call(request)
+            call = _normalize_text_tool_call(request, allowed_names)
             if call is not None:
                 return [call]
             position = max(end, start + 1)
     return []
 
 
-def _normalize_text_tool_call(request: Any) -> dict[str, Any] | None:
+def _normalize_text_tool_call(
+    request: Any,
+    allowed_names: set[str] = TOOL_NAMES,
+) -> dict[str, Any] | None:
     if not isinstance(request, dict):
         return None
     name = request.get("name")
     arguments = request.get("arguments", {})
-    if not isinstance(name, str) or name not in TOOL_NAMES or not isinstance(arguments, dict):
+    if not isinstance(name, str) or name not in allowed_names or not isinstance(arguments, dict):
         return None
-    return {"function": {"name": name, "arguments": arguments}}
+    return {
+        "function": {
+            "name": name,
+            "arguments": {
+                key: _unwrap_text_tool_argument(value)
+                for key, value in arguments.items()
+            },
+        }
+    }
+
+
+def _unwrap_text_tool_argument(value: Any) -> Any:
+    if isinstance(value, dict):
+        if set(value) == {"type", "value"}:
+            return _unwrap_text_tool_argument(value["value"])
+        return {key: _unwrap_text_tool_argument(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_unwrap_text_tool_argument(item) for item in value]
+    return value
 
 
 def chat(
