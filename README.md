@@ -72,13 +72,14 @@ LOAD_IN_4bit = False
 Key training settings include:
 
 - LoRA rank: `r=16`
-- Training steps: `max_steps=60`
-- Batch size: `per_device_train_batch_size=2`
+- Training duration: `num_train_epochs=3`
+- Batch size: `per_device_train_batch_size=1`, `gradient_accumulation_steps=1`
+- Warmup steps: `0` (the current dataset is too small to benefit from warmup)
 - Learning rate: `2e-4`
 - Output directory: `outputs`
 - Seed: `342`
 
-These values are suitable for lightweight experimentation and CPU-oriented development, but they can be adjusted for larger or more specialized training runs.
+The checked-in dataset currently contains only three examples. The previous checkpoint records 60 epochs over that tiny dataset, which risks memorization rather than improving general coding ability. The script now uses three epochs by default. Add diverse, high-quality examples and evaluate on held-out tasks before increasing training duration.
 
 ## How the Script Works
 
@@ -94,8 +95,10 @@ The script follows a straightforward workflow:
 At the end of training, the program prints:
 
 ```text
-Training complete! GGUF model successfully saved to ./coder79_slm_model
+Training complete! GGUF model successfully saved to <project directory>\coder79_slm_model
 ```
+
+Training paths are resolved relative to `main.py`, so the script can be launched from a different working directory.
 
 ## Exporting the Model
 
@@ -172,6 +175,8 @@ The service uses resource limits configured in `docker-compose.yml`:
 - Fine-tuning is intentionally lightweight and may not produce production-quality results without a larger dataset or longer training run.
 - The model export is done in GGUF format for compatibility with local inference tools such as Ollama.
 - Running the full training pipeline requires substantial memory and a compatible ML environment.
+- The Ollama model is a text-generation model, not an operating-system agent. It cannot browse or edit arbitrary local files unless a separate application explicitly supplies those files or connects authorized tools. The system prompt asks it to be honest about this limitation and to ground repository guidance in provided context.
+- The training examples and model prompt request concise explanations, not hidden chain-of-thought or `<think>` output.
 
 ## Suggested Next Steps
 

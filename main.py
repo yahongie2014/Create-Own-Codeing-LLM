@@ -2,10 +2,13 @@ import unsloth  # MUST be the absolute first import
 
 import torch
 from importlib import import_module
+from pathlib import Path
 from trl import SFTTrainer, SFTConfig
 from unsloth import FastLanguageModel, get_chat_template
 
 if __name__ == "__main__":
+    project_dir = Path(__file__).resolve().parent
+
     try:
         load_dataset = import_module("datasets").load_dataset
     except ModuleNotFoundError as exc:
@@ -49,7 +52,11 @@ if __name__ == "__main__":
     )
 
     # 5. Load and Format Dataset (using inline mapping to prevent Windows scope errors)
-    dataset = load_dataset("json", data_files="coding_dataset.jsonl", split="train")
+    dataset = load_dataset(
+        "json",
+        data_files=str(project_dir / "coding_dataset.jsonl"),
+        split="train",
+    )
     dataset = dataset.map(
         lambda x: {
             "text": [
@@ -66,18 +73,18 @@ if __name__ == "__main__":
         train_dataset=dataset,
         args=SFTConfig(
             dataset_text_field="text",
-            max_seq_length=MAX_SEQ_LENGTH,
+            max_length=MAX_SEQ_LENGTH,
             packing=False,
             dataset_num_proc=1,
-            per_device_train_batch_size=2,
-            gradient_accumulation_steps=4,
-            warmup_steps=5,
-            max_steps=60,
+            per_device_train_batch_size=1,
+            gradient_accumulation_steps=1,
+            warmup_steps=0,
+            num_train_epochs=3,
             learning_rate=2e-4,
             fp16=False,
             bf16=False,
             logging_steps=1,
-            output_dir="outputs",
+            output_dir=str(project_dir / "outputs"),
             optim="adamw_torch",
             weight_decay=0.01,
             lr_scheduler_type="cosine",
@@ -90,8 +97,11 @@ if __name__ == "__main__":
 
     # 8. Save Locally & Export to GGUF (for Ollama)
     model.save_pretrained_gguf(
-        "coder79_slm_model",
+        str(project_dir / "coder79_slm_model"),
         tokenizer,
         quantization_method="q4_k_m"
     )
-    print("Training complete! GGUF model successfully saved to ./coder79_slm_model")
+    print(
+        "Training complete! GGUF model successfully saved to "
+        f"{project_dir / 'coder79_slm_model'}"
+    )
