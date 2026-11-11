@@ -38,3 +38,10 @@ coder79_slm_model/coder79-export-uwb99ugi/coder79/merged_16bit/tokenizer.json
 coder79_slm_model/coder79-export-uwb99ugi/coder79/coder79.BF16.gguf
 coder79_slm_model/coder79-export-uwb99ugi/coder79/coder79.Q4_K_M.gguf
 coder79_slm_model/coder79-export-uwb99ugi/coder79/coder79.Q4_K_M.gguf
+coder79_slm_model/coder79-export-twvz1aed/coder79/merged_16bit/chat_template.jinja
+coder79_slm_model/coder79-export-twvz1aed/coder79/merged_16bit/config.json
+coder79_slm_model/coder79-export-twvz1aed/coder79/merged_16bit/generation_config.json
+coder79_slm_model/coder79-export-twvz1aed/coder79/merged_16bit/model.safetensors
+coder79_slm_model/coder79-export-twvz1aed/coder79/merged_16bit/tokenizer_config.json
+coder79_slm_model/coder79-export-twvz1aed/coder79/merged_16bit/tokenizer.json
+coder79_slm_model/coder79-export-twvz1aed/coder79/coder79.BF16.gguf
