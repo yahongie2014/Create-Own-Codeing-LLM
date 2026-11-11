@@ -44,7 +44,7 @@ Training is performed by `main.py` on the host; Docker is used to serve the expo
 
 ## Dataset Format
 
-The training data is stored in JSON Lines format (`coding_dataset.jsonl`). Each line is a JSON object containing a chat conversation structure similar to:
+The training data is stored in JSON Lines files: `coding_dataset.jsonl`, `coding_dataset_php.jsonl`, and `coding_dataset_advanced.jsonl`. `coding_skills.json` contains the structured skill profile and additional training conversations. Each JSONL line is a chat object similar to:
 
 ```json
 {
@@ -79,7 +79,7 @@ Key training settings include:
 - Output directory: `outputs`
 - Seed: `342`
 
-The checked-in dataset now contains nine examples covering full-stack APIs, frontend accessibility, database query performance, debugging, testing, and Docker. This is still a small dataset and can overfit; add diverse, high-quality examples and evaluate on held-out tasks before increasing training duration.
+The checked-in datasets provide twenty training conversations covering full-stack APIs, frontend accessibility, database query performance, debugging, testing, Docker, PHP/PDO/Laravel/PHPUnit, OOP and SOLID, Python/FastAPI, TypeScript, data science, and computer engineering. `main.py` reads the training conversations from `coding_skills.json` and combines them with the three JSONL files. This is still a small dataset and can overfit; add diverse, high-quality examples and evaluate on held-out tasks before increasing training duration.
 
 ## How the Script Works
 
@@ -88,7 +88,7 @@ The script follows a straightforward workflow:
 1. `FastLanguageModel.from_pretrained(...)` loads the base model and tokenizer.
 2. `FastLanguageModel.get_peft_model(...)` wraps the model in LoRA adapters.
 3. `get_chat_template(...)` applies the Qwen chat template.
-4. `dataset.map(...)` converts the raw message data into plain text prompt strings.
+4. `dataset.map(...)` converts conversations from the JSONL files and `coding_skills.json` into plain text prompt strings.
 5. `SFTTrainer(...)` executes supervised fine-tuning.
 6. `model.save_pretrained_gguf(...)` exports the trained model to a GGUF artifact.
 
@@ -173,7 +173,7 @@ The service uses resource limits configured in `docker-compose.yml`:
 
 - The script is configured for CPU training and sets `LOAD_IN_4bit = False` for compatibility with CPU execution.
 - Fine-tuning is intentionally lightweight and may not produce production-quality results without a larger dataset or longer training run.
-- Updating `coding_dataset.jsonl` does not change model weights until `main.py` is successfully run and the GGUF is exported. The current host reports no CUDA GPU, and a full fine-tune was not run as part of this update.
+- Updating the skill profile or datasets does not change model weights until `main.py` completes training and exports the GGUF. CPU training is supported by the installed Unsloth version but is substantially slower than GPU training.
 - The model export is done in GGUF format for compatibility with local inference tools such as Ollama.
 - Running the full training pipeline requires substantial memory and a compatible ML environment.
 - The Ollama model is a text-generation model, not an operating-system agent. It cannot browse or edit arbitrary local files unless a separate application explicitly supplies those files or connects authorized tools. The system prompt asks it to be honest about this limitation and to ground repository guidance in provided context.

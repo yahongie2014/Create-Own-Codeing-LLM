@@ -1,6 +1,10 @@
 import unsloth  # MUST be the absolute first import
 
+import json
+import os
+import tempfile
 import torch
+from datetime import datetime
 from importlib import import_module
 from pathlib import Path
 from trl import SFTTrainer, SFTConfig
@@ -10,7 +14,8 @@ if __name__ == "__main__":
     project_dir = Path(__file__).resolve().parent
 
     try:
-        load_dataset = import_module("datasets").load_dataset
+        datasets = import_module("datasets")
+        load_dataset = datasets.load_dataset
     except ModuleNotFoundError as exc:
         if exc.name == "datasets":
             raise RuntimeError(
@@ -22,7 +27,11 @@ if __name__ == "__main__":
     # 1. Configuration Constants
     MODEL_NAME = "Qwen/Qwen2.5-Coder-1.5B-Instruct"
     MAX_SEQ_LENGTH = 4096
-    DTYPE = torch.bfloat16
+    DTYPE = (
+        torch.bfloat16
+        if torch.cuda.is_available() and torch.cuda.is_bf16_supported()
+        else torch.float32
+    )
     LOAD_IN_4bit = False  # Must be False for CPU training
 
     # 2. Initialize Model and Tokenizer for CPU
@@ -54,9 +63,18 @@ if __name__ == "__main__":
     # 5. Load and Format Dataset (using inline mapping to prevent Windows scope errors)
     dataset = load_dataset(
         "json",
-        data_files=str(project_dir / "coding_dataset.jsonl"),
+        data_files=[
+            str(project_dir / "coding_dataset.jsonl"),
+            str(project_dir / "coding_dataset_php.jsonl"),
+            str(project_dir / "coding_dataset_advanced.jsonl"),
+        ],
         split="train",
     )
+    skills = json.loads(
+        (project_dir / "coding_skills.json").read_text(encoding="utf-8")
+    )
+    skills_dataset = datasets.Dataset.from_list(skills["training_conversations"])
+    dataset = datasets.concatenate_datasets([dataset, skills_dataset])
     dataset = dataset.map(
         lambda x: {
             "text": [
@@ -84,7 +102,11 @@ if __name__ == "__main__":
             fp16=False,
             bf16=False,
             logging_steps=1,
-            output_dir=str(project_dir / "outputs"),
+            output_dir=str(
+                project_dir
+                / "outputs"
+                / f"skills-run-{datetime.now():%Y%m%d-%H%M%S}"
+            ),
             optim="adamw_torch",
             weight_decay=0.01,
             lr_scheduler_type="cosine",
@@ -96,11 +118,24 @@ if __name__ == "__main__":
     trainer_stats = trainer.train()
 
     # 8. Save Locally & Export to GGUF (for Ollama)
-    model.save_pretrained_gguf(
-        str(project_dir / "coder79_slm_model"),
-        tokenizer,
-        quantization_method="q4_k_m"
-    )
+    model_dir = project_dir / "coder79_slm_model"
+    with tempfile.TemporaryDirectory(prefix="coder79-export-", dir=model_dir) as temp_dir:
+        export_dir = Path(temp_dir) / "coder79"
+        model.save_pretrained_gguf(
+            str(export_dir),
+            tokenizer,
+            quantization_method="q4_k_m",
+        )
+        exported_models = list(Path(temp_dir).glob("*.gguf"))
+        if len(exported_models) != 1 or exported_models[0].stat().st_size == 0:
+            raise RuntimeError(
+                f"Expected one non-empty GGUF export in {temp_dir}, "
+                f"found {len(exported_models)}."
+            )
+        os.replace(
+            exported_models[0],
+            model_dir / "coder79_slm_model.Q4_K_M.gguf",
+        )
     print(
         "Training complete! GGUF model successfully saved to "
         f"{project_dir / 'coder79_slm_model'}"
