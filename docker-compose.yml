@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama-coder-cpu
+    ports:
+      - "11434:11434"
+    volumes:
+      - ./ollama_data:/root/.ollama
+      - ./coder79_slm_model:/app/model
+    deploy:
+      resources:
+        limits:
+          cpus: '6.0'        # Restrict to 6 cores so your PC stays snappy
+          memory: 16G        # Hard cap at 16 GB RAM
+        reservations:
+          memory: 8G
+    environment:
+      - OLLAMA_NUM_PARALLEL=1 # Keep single-threaded execution queue clean
+      - OLLAMA_NOPRINT=1
+    restart: unless-stopped
