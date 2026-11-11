@@ -79,7 +79,7 @@ Key training settings include:
 - Output directory: `outputs`
 - Seed: `342`
 
-The checked-in dataset currently contains only three examples. The previous checkpoint records 60 epochs over that tiny dataset, which risks memorization rather than improving general coding ability. The script now uses three epochs by default. Add diverse, high-quality examples and evaluate on held-out tasks before increasing training duration.
+The checked-in dataset now contains nine examples covering full-stack APIs, frontend accessibility, database query performance, debugging, testing, and Docker. This is still a small dataset and can overfit; add diverse, high-quality examples and evaluate on held-out tasks before increasing training duration.
 
 ## How the Script Works
 
@@ -173,6 +173,7 @@ The service uses resource limits configured in `docker-compose.yml`:
 
 - The script is configured for CPU training and sets `LOAD_IN_4bit = False` for compatibility with CPU execution.
 - Fine-tuning is intentionally lightweight and may not produce production-quality results without a larger dataset or longer training run.
+- Updating `coding_dataset.jsonl` does not change model weights until `main.py` is successfully run and the GGUF is exported. The current host reports no CUDA GPU, and a full fine-tune was not run as part of this update.
 - The model export is done in GGUF format for compatibility with local inference tools such as Ollama.
 - Running the full training pipeline requires substantial memory and a compatible ML environment.
 - The Ollama model is a text-generation model, not an operating-system agent. It cannot browse or edit arbitrary local files unless a separate application explicitly supplies those files or connects authorized tools. The system prompt asks it to be honest about this limitation and to ground repository guidance in provided context.
@@ -180,7 +181,7 @@ The service uses resource limits configured in `docker-compose.yml`:
 
 ## Suggested Next Steps
 
-- Add more high-quality training examples to `coding_dataset.jsonl`.
+- Add more high-quality training examples to `coding_dataset.jsonl` and run the training/export pipeline on a compatible machine.
 - Tune the LoRA hyperparameters for better output quality.
 - Increase the number of training steps for stronger convergence.
 - Test the exported model in Ollama and evaluate the generated code quality.
