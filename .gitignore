@@ -36,3 +36,5 @@ coder79_slm_model/coder79-export-uwb99ugi/coder79/merged_16bit/model.safetensors
 coder79_slm_model/coder79-export-uwb99ugi/coder79/merged_16bit/tokenizer_config.json
 coder79_slm_model/coder79-export-uwb99ugi/coder79/merged_16bit/tokenizer.json
 coder79_slm_model/coder79-export-uwb99ugi/coder79/coder79.BF16.gguf
+coder79_slm_model/coder79-export-uwb99ugi/coder79/coder79.Q4_K_M.gguf
+coder79_slm_model/coder79-export-uwb99ugi/coder79/coder79.Q4_K_M.gguf
