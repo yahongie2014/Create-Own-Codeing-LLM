@@ -32,28 +32,15 @@ The main training flow is implemented in `main.py` and performs the following st
 
 ## Prerequisites
 
-Before running the project, ensure the following are installed:
+To run the exported model, install and start Docker Desktop and make sure it is running. You do not need Python or the training packages to run the existing GGUF model.
 
-- Python 3.10+
-- PyTorch
-- `datasets`
-- `trl`
-- `unsloth`
-- CUDA-enabled GPU is optional for this project, but the script is configured for CPU training in the current setup.
-
-The script includes a guard that raises a clear error if the `datasets` package is missing:
-
-```bash
-python -m pip install datasets
-```
-
-You will likely also need the ML dependencies required by the selected model and the training stack. In a typical environment, the following packages are required:
+Python 3.10+ and the training dependencies are only needed if you want to train or export the model again:
 
 ```bash
 python -m pip install torch datasets trl unsloth
 ```
 
-If you are using a constrained environment, verify that the dependencies match the installed Python version and operating system.
+Training is performed by `main.py` on the host; Docker is used to serve the exported model with Ollama.
 
 ## Dataset Format
 
@@ -118,24 +105,40 @@ The script exports the fine-tuned model to the local folder:
 ./coder79_slm_model
 ```
 
-This folder is also mounted into the container defined in `docker-compose.yml`, enabling the Ollama service to use the model as a local runtime artifact.
+This folder is also mounted into the container defined in `docker-compose.yml`. The `Modelfile` in this folder tells Ollama which GGUF artifact to load.
 
-## Running Ollama via Docker Compose
+## Run the Model with Docker
 
-The repository includes a Docker Compose configuration to start Ollama with the trained model directory mounted.
+The exported GGUF file and `Modelfile` are mounted into the Ollama container by `docker-compose.yml`. In PowerShell, from the project root, start the container and register the model:
 
-Start the service:
-
-```bash
+```powershell
 docker compose up -d
+docker compose exec ollama ollama create coder79 -f /app/model/Modelfile
 ```
 
-This launches an Ollama container on port `11434`.
+Open an interactive chat:
 
-To verify the service is running:
+```powershell
+docker compose exec -it ollama ollama run coder79
+```
 
-```bash
-curl http://localhost:11434
+The Ollama API is available at `http://localhost:11434`. To generate a response from PowerShell:
+
+```powershell
+$body = @{
+    model = "coder79"
+    prompt = "Write a Python function to parse JSON safely."
+    stream = $false
+} | ConvertTo-Json
+
+Invoke-RestMethod -Uri "http://localhost:11434/api/generate" `
+    -Method Post -ContentType "application/json" -Body $body
+```
+
+The Ollama model is stored in `ollama_data`, so you only need to run `ollama create` again if that data is removed or the GGUF file changes. Stop the container with:
+
+```powershell
+docker compose down
 ```
 
 The service uses resource limits configured in `docker-compose.yml`:
@@ -161,16 +164,15 @@ The service uses resource limits configured in `docker-compose.yml`:
 
 ## Quick Start
 
-```bash
-python -m pip install torch datasets trl unsloth
-python main.py
-```
+Run the already-exported model from Docker:
 
-Then optionally start Ollama:
-
-```bash
+```powershell
 docker compose up -d
+docker compose exec ollama ollama create coder79 -f /app/model/Modelfile
+docker compose exec -it ollama ollama run coder79
 ```
+
+To train/export a new model first, install the training dependencies and run `python main.py`; then repeat the Docker commands above.
 
 ## Summary
 
