@@ -42,9 +42,9 @@ if not exist "%GGUF_FILE%" (
 )
 
 echo Starting the coder79model container...
-docker compose up -d ollama
+docker compose up -d ollama ollama-webui
 if errorlevel 1 (
-    echo ERROR: Could not start the Ollama Docker service.
+    echo ERROR: Could not start the Ollama Docker services.
     exit /b 1
 )
 
@@ -105,4 +105,5 @@ if errorlevel 1 (
 echo.
 echo Coder79 is ready. To start an interactive chat, run:
 echo docker compose exec -it ollama ollama run coder79
+echo Open WebUI is available at http://localhost:3000
 exit /b 0

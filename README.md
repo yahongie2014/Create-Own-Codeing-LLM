@@ -79,7 +79,19 @@ Key training settings include:
 - Output directory: `outputs`
 - Seed: `342`
 
-The checked-in datasets provide twenty training conversations covering full-stack APIs, frontend accessibility, database query performance, debugging, testing, Docker, PHP/PDO/Laravel/PHPUnit, OOP and SOLID, Python/FastAPI, TypeScript, data science, and computer engineering. `main.py` reads the training conversations from `coding_skills.json` and combines them with the three JSONL files. This is still a small dataset and can overfit; add diverse, high-quality examples and evaluate on held-out tasks before increasing training duration.
+The checked-in datasets provide 31 training conversations: 9 core coding, 6 advanced coding, 3 PHP, and 13 skill-profile examples. The expanded profile emphasizes repository analysis, debugging from evidence, architecture and migrations, reliability, testing, frontend accessibility, and code review. `main.py` reads these conversations from the three JSONL files and `coding_skills.json`. This remains a small dataset; it can overfit and does not guarantee these capabilities. Evaluate on held-out tasks before increasing training duration.
+
+### Applying and training updated skills
+
+The serving model's system prompt is generated from `write_coder79_modelfile.ps1`. After changing that prompt, rebuild the Modelfile and register it in Ollama:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\write_coder79_modelfile.ps1
+docker compose exec --workdir /app/model ollama ollama create coder79 -f Modelfile
+docker compose up -d --build coder79-agent
+```
+
+This updates the serving instructions immediately, but it does not change model weights. To fine-tune the expanded training examples, install the training dependencies and run `python main.py`; training is resource-intensive. After training exports a new GGUF, register the new weights with `docker compose exec --workdir /app/model ollama ollama create coder79 -f Modelfile`.
 
 ## How the Script Works
 
@@ -156,13 +168,9 @@ This repository includes a VS Code task and a copy-ready custom model entry:
 - `.vscode/tasks.json` builds and starts the Docker Coder79 agent, scoped to the currently opened workspace.
 - `.vscode/coder79-chatLanguageModels.json` is a template for registering the model in your VS Code user profile.
 
-1. Open this `customModel` folder in VS Code. Make sure Docker Desktop is running:
+1. Open this `customModel` folder in VS Code and make sure Docker Desktop is running.
 
-   ```powershell
-   docker compose up -d ollama
-   ```
-
-2. Press `Ctrl+Shift+P`, run **Tasks: Run Task**, then select **Start Coder79 for this workspace**. Docker builds the agent image, mounts the selected workspace read-only, and connects to Ollama over the Compose network. Leave the task terminal running; press `Ctrl+C` there or run `docker compose stop coder79-agent` to stop the IDE agent.
+2. Press `Ctrl+Shift+P`, run **Tasks: Run Task**, then select **Start Coder79 for this workspace**. Docker starts Ollama, registers `coder79` from the local GGUF if it has not been registered yet, builds the agent image, mounts the selected workspace read-only, and connects the agent to Ollama over the Compose network. Leave the task terminal running; run `docker compose stop coder79-agent` to stop the IDE agent.
 
 3. Run **Chat: Manage Language Models** from the Command Palette, select **Add Models** → **Custom Endpoint**, and choose **Chat Completions**. When VS Code opens its `chatLanguageModels.json` user-profile file, copy the contents of `.vscode/coder79-chatLanguageModels.json` into that file and save. If VS Code already has providers in the array, add the `Coder79 Local` object rather than replacing them.
 

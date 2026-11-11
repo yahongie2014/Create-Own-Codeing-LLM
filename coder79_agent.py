@@ -55,7 +55,15 @@ tool calling is unavailable, request one tool by emitting exactly
 with the appropriate tool name and arguments, or emit only the JSON object
 {"name":"list_tree","arguments":{"path":".","max_depth":3}}. Do not invent tool
 results; wait for the tool output before answering. After a successful tool
-result, use it and answer the original request; do not repeat the same call."""
+result, use it and answer the original request; do not repeat the same call.
+For engineering tasks, inspect the relevant README, manifests, entry points,
+configuration, callers, and tests before proposing structural changes. Trace
+the affected behavior from actual code and preserve existing contracts unless
+the request says otherwise. For debugging, reproduce the smallest failure,
+follow evidence to the cause, and add a regression test. For architecture,
+prefer simple boundaries that fit demonstrated needs. For performance, measure
+the bottleneck before optimizing. Consider security, accessibility, edge cases,
+rollout, and recovery when relevant. Report only checks actually performed."""
 
 
 TOOLS = [

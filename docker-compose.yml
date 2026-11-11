@@ -33,6 +33,26 @@ services:
       - ollama
     restart: unless-stopped
 
+  coder79-model-init:
+    image: ollama/ollama:latest
+    entrypoint:
+      - /bin/sh
+      - -c
+    command:
+      - |
+        set -eu
+        until ollama list >/dev/null 2>&1; do sleep 2; done
+        if ! ollama list | grep -q '^coder79:'; then
+          ollama create coder79 -f /app/model/Modelfile
+        fi
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+    volumes:
+      - ./coder79_slm_model:/app/model:ro
+    depends_on:
+      - ollama
+    restart: "no"
+
   coder79-agent:
     build:
       context: .
@@ -54,7 +74,8 @@ services:
         target: /workspace
         read_only: true
     depends_on:
-      - ollama
+      coder79-model-init:
+        condition: service_completed_successfully
     restart: unless-stopped
 
 volumes:
