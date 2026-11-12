@@ -73,7 +73,14 @@ class IdeServerTests(unittest.TestCase):
 
         self.assertEqual(
             [tool["name"] for tool in tools_response["result"]["tools"]],
-            ["list_tree", "read_file", "search_files", "fetch_url"],
+            [
+                "list_tree",
+                "read_file",
+                "search_files",
+                "search_skills",
+                "read_skill",
+                "fetch_url",
+            ],
         )
         self.assertIn("print('hello')", call_response["result"]["content"][0]["text"])
         self.assertFalse(call_response["result"]["isError"])
@@ -171,6 +178,34 @@ class IdeServerTests(unittest.TestCase):
         )
         self.assertEqual(ollama_request.call_args.args[1], "coder79")
         self.assertIn("workspace", ollama_request.call_args.args[2][0]["content"])
+
+    def test_openai_native_tool_requests_include_relevant_research_skill_context(self):
+        with patch(
+            "coder79.ide_server._request_ollama",
+            return_value={"message": {"role": "assistant", "content": "Use held-out benchmarks."}},
+        ) as ollama_request:
+            create_chat_completion(
+                {
+                    "messages": [
+                        {
+                            "role": "user",
+                            "content": "Evaluate the model with reproducible benchmarks.",
+                        }
+                    ],
+                    "tools": [
+                        {
+                            "type": "function",
+                            "function": {"name": "list_files", "parameters": {}},
+                        }
+                    ],
+                },
+                self.workspace,
+                "coder79",
+                "http://localhost:11434",
+            )
+
+        system_message = ollama_request.call_args.args[2][0]["content"]
+        self.assertIn("Relevant AI research skill", system_message)
 
     def test_openai_endpoint_rejects_invalid_messages_and_preserves_continue_tools(self):
         with self.assertRaisesRegex(ValueError, "text messages"):

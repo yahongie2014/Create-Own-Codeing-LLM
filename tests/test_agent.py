@@ -173,6 +173,17 @@ class WorkspaceToolsTests(unittest.TestCase):
             '{"name":"fetch_url","arguments":{"url":"https://example.com/"}}'
         )
         self.assertEqual(web_call[0]["function"]["name"], "fetch_url")
+        fenced_web_call = _text_tool_calls(
+            '{"name":"fetch_url","arguments":{"url":"https://example.com/"}}\n```'
+        )
+        self.assertEqual(fenced_web_call, web_call)
+        self.assertEqual(
+            _text_tool_calls(
+                '{"name":"fetch_url","arguments":{"url":"https://example.com/"}}'
+                "\n``` commentary"
+            ),
+            [],
+        )
         self.assertEqual(_text_tool_calls('{"name":"run_command","arguments":{}}'), [])
         self.assertEqual(_text_tool_calls('{"name":[],"arguments":{}}'), [])
 
@@ -263,7 +274,7 @@ class WorkspaceToolsTests(unittest.TestCase):
                     "role": "assistant",
                     "content": (
                         '{"name":"fetch_url","arguments":'
-                        '{"url":"https://example.com/"}}'
+                        '{"url":"https://example.com/"}}\n```'
                     ),
                 }
             },

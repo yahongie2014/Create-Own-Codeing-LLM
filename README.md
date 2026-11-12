@@ -1,12 +1,13 @@
 # Custom Model Training Project
 
-This project serves a code-focused model through Ollama and provides an optional small-model fine-tuning pipeline. The default Coder79 service uses Qwen2.5-Coder 3B with the project's system instructions; optional local training remains a separate workflow. Coder79's terminal and IDE agent integrations can also fetch public static web pages when given a URL.
+This project serves a code-focused model through Ollama and provides an optional small-model fine-tuning pipeline. The default Coder79 service uses Qwen2.5-Coder 3B with the project's system instructions; optional local training remains a separate workflow. Coder79's terminal and IDE agent integrations can fetch public static web pages and retrieve relevant AI research skill guides.
 
 ## Repository Layout
 
 - `coder79/` — Python package for the workspace agent, IDE server, and training entry point.
 - `tests/` — unit tests for the workspace tools and IDE API.
 - `data/` — training conversations and skill profile.
+- `data/AI-Research-SKILLs/` — MIT-licensed research skill guides loaded on demand by the agent.
 - `models/coder79/` — Ollama `Modelfile` and local GGUF/model export artifacts.
 - `artifacts/training/` — generated fine-tuning runs and checkpoints (ignored by Git).
 - `ollama_data/` — persistent Ollama runtime state (ignored by Git; do not share).
@@ -58,6 +59,21 @@ The training data is stored in `data/` as JSON Lines files: `coding_dataset.json
 ```
 
 The script applies the Hugging Face chat template to each conversation before training.
+
+### On-demand AI research skills
+
+The agent can search the MIT-licensed AI Research Skills library by Orchestra
+Research (98 Markdown guides under `data/AI-Research-SKILLs/`) and load only
+relevant guides when a task involves AI/ML research, model
+architecture, training, evaluation, inference serving, RAG, agents, or paper
+writing. It does not stuff the entire library into every prompt or silently
+change model weights. Skill files are technical references; their instructions
+do not override the user's request or the agent's tool and safety limits.
+
+The Docker agent mounts this directory read-only. When running an agent server
+or terminal client outside Docker, the default is the same directory in this
+project; use `--skills <folder>` to select a different local library. Preserve
+the bundled library's `LICENSE` when redistributing it.
 
 ## Training Configuration
 
@@ -137,7 +153,25 @@ docker compose up -d
 docker compose exec --workdir /app/model ollama ollama create coder79 -f Modelfile
 ```
 
-Open an interactive chat:
+For an interactive chat that can inspect public URLs, use Open WebUI at
+`http://localhost:3000` or the local agent client described below. Running
+`ollama run coder79` directly talks to the text model without its web-fetch
+tools.
+
+To try web analysis in Open WebUI, select `coder79` and ask it to fetch a
+public article or documentation URL, then specify the analysis you want. For
+example:
+
+> Fetch https://example.com/ and summarize its purpose, key points, and any
+> limitations you can infer from the page.
+
+You can also paste article text directly into the chat. URL fetching supports
+public HTTP(S) pages served as static HTML, XHTML, or plain text; it does not
+search the web, run JavaScript, access sign-in-only content, or fetch PDFs.
+Only the content returned by the page (capped at 12,000 characters for model
+context) can be analyzed.
+
+Direct model chat remains available for text-only use:
 
 ```powershell
 docker compose exec -it ollama ollama run coder79
@@ -283,7 +317,9 @@ The service uses resource limits configured in `docker-compose.yml`:
 
 On Windows, start Docker Desktop and double-click `start_and_test_coder79.bat`. It builds the agent image, starts the services, waits for Ollama, then runs an inference check. Double-click `stop_coder79.bat` to stop all Compose services without deleting the model, Ollama data, or WebUI data.
 
-Run the already-exported model from Docker:
+For web-enabled chat after startup, open `http://localhost:3000` and select
+`coder79`, or run the local agent client as described above. To chat directly
+with Ollama without workspace or web tools:
 
 ```powershell
 docker compose up -d

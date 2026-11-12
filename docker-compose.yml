@@ -94,6 +94,10 @@ services:
         source: ${WORKSPACE_PATH:-.}
         target: /workspace
         read_only: true
+      - type: bind
+        source: ./data/AI-Research-SKILLs
+        target: /app/data/AI-Research-SKILLs
+        read_only: true
     depends_on:
       coder79-model-init:
         condition: service_completed_successfully
