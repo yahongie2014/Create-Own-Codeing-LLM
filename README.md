@@ -1,6 +1,6 @@
 # Custom Model Training Project
 
-This project serves a code-focused model through Ollama and provides an optional small-model fine-tuning pipeline. The default Coder79 service uses Qwen2.5-Coder 3B with the project's system instructions; optional local training remains a separate workflow. Coder79's terminal and IDE agent integrations can search the public web, fetch public static web pages, and retrieve relevant AI research skill guides.
+This project serves a code-focused model through Ollama and provides an optional from-scratch CPU training pipeline. The default Coder79 service uses Qwen2.5-Coder 3B with the project's system instructions; local training is a separate workflow that does not use a pretrained model. Coder79's terminal and IDE agent integrations can search the public web, fetch public static web pages, and retrieve relevant AI research skill guides.
 
 ## Repository Layout
 
@@ -8,8 +8,8 @@ This project serves a code-focused model through Ollama and provides an optional
 - `tests/` — unit tests for the workspace tools and IDE API.
 - `data/` — training conversations and skill profile.
 - `data/AI-Research-SKILLs/` — MIT-licensed research skill guides loaded on demand by the agent.
-- `models/coder79/` — Ollama `Modelfile` and optional local GGUF exports; CPU training saves its PEFT adapter under `artifacts/training/`.
-- `artifacts/training/` — generated fine-tuning runs and checkpoints (ignored by Git).
+- `models/coder79/` — Ollama `Modelfile`, scratch-model GGUF export, and scratch-model import template.
+- `artifacts/training/` — generated from-scratch models and checkpoints (ignored by Git).
 - `ollama_data/` — persistent Ollama runtime state (ignored by Git; do not share).
 - `.continue/` and `.vscode/` — Continue and VS Code workspace configuration.
 - Root files — Docker/Compose and Windows start/stop helpers.
@@ -21,28 +21,28 @@ The project uses:
 - Python
 - PyTorch
 - Hugging Face Transformers
-- PEFT for LoRA fine-tuning
+- Tokenizers for learning a tokenizer from the local training data
 - Ollama for local model serving
 
 The default serving flow pulls `qwen2.5-coder:3b` from Ollama, then applies Coder79's system instructions and serves it under the `coder79` name. The optional training flow in `coder79/train.py` remains separate:
 
-1. Loads the `Qwen/Qwen2.5-Coder-0.5B-Instruct` model on CPU.
-2. Applies LoRA adapters for memory-efficient fine-tuning.
-3. Loads the coding datasets and all 98 AI research skill guides.
-4. Formats the data with the Qwen chat template and splits long token sequences without dropping their content.
-5. Trains the adapters using system RAM, with gradient checkpointing enabled.
-6. Saves the adapter under `artifacts/training/`. This output does not replace the default 3B serving model.
+1. Learns a SentencePiece BPE tokenizer from the coding conversations and local skill guides.
+2. Initializes a small Llama-style causal transformer with random weights.
+3. Loads the coding datasets and all local AI research skill guides.
+4. Formats conversations with the locally trained tokenizer and splits long sequences without dropping their content.
+5. Trains the complete model using system RAM.
+6. Saves a standalone model and tokenizer under `artifacts/training/`, then converts it to an F16 GGUF at `models/coder79/coder79-scratch-f16.gguf`. This output does not replace the default 3B serving model.
 
 ## Prerequisites
 
-To run Coder79, install and start Docker Desktop and make sure it is running. Internet access is needed on first startup to download the 3B model. You do not need Python or the training packages for standard Ollama chat. Python 3.10+ is needed to run the local file-navigation agent; it uses only the standard library. Training packages are needed only for the separate optional fine-tuning workflow:
+To run Coder79, install and start Docker Desktop and make sure it is running. Internet access is needed on first startup to download the 3B model. You do not need Python or the training packages for standard Ollama chat. Python 3.10+ is needed to run the local file-navigation agent; it uses only the standard library. Training packages are needed only for the separate optional from-scratch workflow:
 
 ```powershell
 python -m pip install -r requirements-training.txt
-python -m coder79.train
+python -m coder79.train --llama-cpp-dir C:\tools\llama.cpp
 ```
 
-Training runs on the host and uses the CPU and system RAM only. The first run downloads the base model from Hugging Face. CPU training can be slow; output adapters and checkpoints are stored locally under `artifacts/training/`.
+Training runs on the host and uses the CPU and system RAM only. It does not download or load a pretrained model. GGUF export uses the local `convert_hf_to_gguf.py` script from llama.cpp. CPU training can be slow; the resulting model is intentionally small and experimental.
 
 ## Dataset Format
 
@@ -58,7 +58,7 @@ The training data is stored in `data/` as JSON Lines files: `coding_dataset.json
 }
 ```
 
-The script applies the Hugging Face chat template to each conversation before training.
+The script uses a tokenizer trained from the included conversations and applies a local chat template before training.
 
 ### On-demand AI research skills
 
@@ -80,31 +80,36 @@ the bundled library's `LICENSE` when redistributing it.
 The main training parameters are defined near the top of `coder79/train.py`:
 
 ```python
-MODEL_NAME = "Qwen/Qwen2.5-Coder-0.5B-Instruct"
-MAX_SEQ_LENGTH = 2048
+MAX_SEQ_LENGTH = 512
+TOKENIZER_VOCAB_SIZE = 8192
+HIDDEN_SIZE = 256
+NUM_LAYERS = 4
+NUM_ATTENTION_HEADS = 4
 ```
 
 Key training settings include:
 
+- Model: randomly initialized Llama-style causal transformer
 - Device and weights: CPU only, `torch.float32`
-- LoRA rank: `r=8`
 - Training duration: one epoch by default (`--epochs` can override it)
 - Batch size: `per_device_train_batch_size=1`
 - Gradient checkpointing: enabled to reduce activation memory
-- Learning rate: `1e-4`
+- Learning rate: `5e-4`
 - Output directory: `artifacts/training`
 - Seed: `342`
 
-Training uses the coding/profile datasets, concise summaries, and all 98 local skill guides. Long conversations are split into sequences without dropping their remaining tokens. The result is a PEFT LoRA adapter for the 0.5B base; training does not alter the separate Ollama model or export a GGUF file.
+Training uses the coding/profile datasets and local skill guides. Long conversations are split into sequences without dropping their remaining tokens. The result is a complete, standalone model and an F16 GGUF file; training does not alter the separate Ollama model.
 
-Create a Python environment, install the CPU training requirements, and start training from the repository root:
+Install the CPU training requirements, clone llama.cpp, install its converter requirements, and start training from the repository root:
 
 ```powershell
 python -m pip install -r requirements-training.txt
-python -m coder79.train
+git clone --depth 1 https://github.com/ggml-org/llama.cpp C:\tools\llama.cpp
+python -m pip install -r C:\tools\llama.cpp\requirements\requirements-convert_hf_to_gguf.txt
+python -m coder79.train --llama-cpp-dir C:\tools\llama.cpp
 ```
 
-The base model is downloaded from Hugging Face on the first run. Training stays local after the download; it uses system RAM and can take a long time on CPU. The small dataset can still overfit and does not guarantee capabilities; evaluate on held-out tasks before increasing training duration.
+The GGUF export is saved to `models\coder79\coder79-scratch-f16.gguf`; `LLAMA_CPP_DIR` can be set instead of passing `--llama-cpp-dir`. Training uses only local data and does not download a base model. The randomly initialized model is deliberately small; the included dataset is not enough to match a pretrained coding model, and training can still overfit. Evaluate on held-out tasks before increasing training duration.
 
 ### Applying and training updated skills
 
@@ -115,7 +120,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\write_coder79_modelfile.ps
 docker compose up -d --build ollama-webui coder79-agent
 ```
 
-The 3B base is a speed-focused compromise for CPU-only local use; it is smaller and generally responds faster than the previously configured 7B model, though with less capacity. The optional `python -m coder79.train` pipeline fine-tunes a separate 0.5B base and does not replace the default Coder79 service.
+The 3B base is a speed-focused compromise for CPU-only local use; it is smaller and generally responds faster than the previously configured 7B model, though with less capacity. The optional `python -m coder79.train` pipeline trains a separate model from random initialization and does not replace the default Coder79 service.
 
 The generated Ollama `Modelfile` keeps the serving system prompt compact so CPU inference spends less time processing repeated instructions. After changing it, regenerate the file and recreate the `coder79` model as described above.
 
@@ -123,35 +128,40 @@ The generated Ollama `Modelfile` keeps the serving system prompt compact so CPU 
 
 The CPU training script follows this workflow:
 
-1. `AutoModelForCausalLM.from_pretrained(...)` loads the 0.5B base in float32 on CPU.
-2. PEFT applies LoRA adapters to the attention and MLP projections.
-3. The trainer combines the JSONL datasets, `data/coding_skills.json`, summaries, and every `SKILL.md` under `data/AI-Research-SKILLs`.
-4. The Qwen chat template is tokenized, and long examples are split into 2048-token sequences without truncation.
-5. Hugging Face `Trainer` fine-tunes the adapters on CPU with gradient checkpointing.
-6. The final adapter and tokenizer are saved under the timestamped training run.
+1. The trainer combines the JSONL datasets, `data/coding_skills.json`, and every `SKILL.md` under `data/AI-Research-SKILLs`.
+2. A SentencePiece BPE tokenizer is trained on the local conversation text.
+3. `LlamaForCausalLM` is initialized from a new configuration, with no pretrained weights.
+4. Conversations are tokenized, and long examples are split into 512-token sequences without truncation.
+5. Hugging Face `Trainer` trains all model weights on CPU.
+6. The complete model and tokenizer are saved under the timestamped training run.
+7. llama.cpp converts that local model to an F16 GGUF in `models/coder79/`.
 
-At the end of training, the program prints the adapter path. It can be resumed from a saved Trainer checkpoint, for example:
+At the end of training, the program prints the standalone model path. It can be resumed from a saved Trainer checkpoint, for example:
 
 ```powershell
-python -m coder79.train --resume-from-checkpoint artifacts\training\cpu-skills-run-<timestamp>\checkpoint-100
+python -m coder79.train --llama-cpp-dir C:\tools\llama.cpp --resume-from-checkpoint artifacts\training\cpu-scratch-run-<timestamp>\checkpoint-100
 ```
 
-## Using the CPU-trained adapter
+## Using the CPU-trained model
 
-The training command saves a LoRA adapter, not a standalone GGUF model. Load it with its base model using Transformers and PEFT:
+The training command saves a complete Transformers model and tokenizer. Load them without a separate base model:
 
 ```python
-from peft import PeftModel
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
-adapter_path = r"artifacts\training\cpu-skills-run-<timestamp>\final-adapter"
-base_name = "Qwen/Qwen2.5-Coder-0.5B-Instruct"
-tokenizer = AutoTokenizer.from_pretrained(adapter_path)
-model = AutoModelForCausalLM.from_pretrained(base_name)
-model = PeftModel.from_pretrained(model, adapter_path)
+model_path = r"artifacts\training\cpu-scratch-run-<timestamp>\final-model"
+tokenizer = AutoTokenizer.from_pretrained(model_path)
+model = AutoModelForCausalLM.from_pretrained(model_path)
 ```
 
-Ollama and LM Studio require a separate merge and GGUF conversion step. The adapter does not replace the default Ollama model.
+The training command also exports `models\coder79\coder79-scratch-f16.gguf`. Open this file in LM Studio, or import it into Ollama using the included scratch Modelfile:
+
+```powershell
+docker compose exec ollama ollama create coder79-scratch -f /app/model/Modelfile-scratch
+docker compose exec ollama ollama run coder79-scratch
+```
+
+This model does not replace the default Ollama model.
 
 ## Run the Model with Docker
 
@@ -306,11 +316,11 @@ The service uses resource limits configured in `docker-compose.yml`:
 
 ## Notes and Limitations
 
-- The training pipeline is CPU-only, uses the 0.5B base model in float32, and does not require a GPU.
-- Fine-tuning is intentionally lightweight and may not produce production-quality results without a larger dataset or longer training run.
+- The training pipeline is CPU-only and initializes every model weight from scratch; it does not require or download a base model.
+- The small random-initialized model and included dataset are for experimentation, not production-quality coding assistance.
 - Updating the skill profile or datasets does not change model weights until `python -m coder79.train` completes training.
-- Training requires several GB of RAM for the base weights and additional memory for activations; CPU training is substantially slower than GPU training.
-- The training script saves PEFT adapters. GGUF conversion for Ollama or LM Studio is a separate step.
+- Training requires RAM for the model, optimizer, and activations; CPU training is substantially slower than GPU training.
+- The training script saves a complete Transformers model. GGUF conversion for Ollama or LM Studio is a separate step.
 - The selected Python environment must support the CPU PyTorch and Hugging Face packages in `requirements-training.txt`.
 - The Ollama model is a text-generation model, not an operating-system agent. The local terminal and IDE integrations provide read-only access to one explicitly selected workspace, public web search, and a static-page fetch tool; they cannot edit or run project files or access private/local network URLs.
 - The training examples and model prompt request concise explanations, not hidden chain-of-thought or `<think>` output.
@@ -318,8 +328,8 @@ The service uses resource limits configured in `docker-compose.yml`:
 ## Suggested Next Steps
 
 - Add more high-quality training examples to `data/coding_dataset.jsonl` and run the training/export pipeline on a compatible machine.
-- Tune the LoRA hyperparameters for better output quality.
-- Increase the number of training steps for stronger convergence.
+- Add more high-quality training examples and held-out evaluation tasks.
+- Increase the model size or training duration only when you have enough compute and data to support them.
 - Test the exported model in Ollama and evaluate the generated code quality.
 - Add validation and evaluation scripts for automatic quality checks.
 
@@ -337,8 +347,8 @@ docker compose exec --workdir /app/model ollama ollama create coder79 -f Modelfi
 docker compose exec -it ollama ollama run coder79
 ```
 
-CPU fine-tuning saves a separate PEFT adapter, not an Ollama-ready GGUF model. Merge and convert the adapter separately before registering it with Ollama.
+CPU training saves a standalone Transformers model, not an Ollama-ready GGUF model. Convert it separately before registering it with Ollama.
 
 ## Summary
 
-This project is a compact local fine-tuning workflow for a coding-focused language model. It trains LoRA adapters on the coding dataset and local skill guides using CPU and system RAM.
+This project includes a compact CPU workflow that trains a small language model from random initialization on the coding dataset and local skill guides. It does not depend on pretrained model weights; its limited model size and training data make it experimental rather than a replacement for the default Ollama model.

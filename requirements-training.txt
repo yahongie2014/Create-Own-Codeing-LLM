@@ -1,4 +1,4 @@
 torch
-transformers
-peft
+transformers==4.57.6
+sentencepiece
 accelerate

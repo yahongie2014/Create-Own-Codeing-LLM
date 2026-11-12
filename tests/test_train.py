@@ -2,11 +2,82 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
-from coder79.train import load_training_conversations, tokenize_conversations
+from coder79.train import (
+    default_llama_cpp_dir,
+    export_to_gguf,
+    load_training_conversations,
+    tokenize_conversations,
+    train_tokenizer,
+)
 
 
 class TrainingDataTests(unittest.TestCase):
+    def test_export_to_gguf_uses_local_llama_cpp_converter(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            llama_cpp_dir = root / "llama.cpp"
+            llama_cpp_dir.mkdir()
+            (llama_cpp_dir / "convert_hf_to_gguf.py").write_text(
+                "import pathlib, sys\n"
+                "args = sys.argv\n"
+                "output = pathlib.Path(args[args.index('--outfile') + 1])\n"
+                "output.write_bytes(b'GGUF')\n",
+                encoding="utf-8",
+            )
+            output_path = root / "models" / "coder79-scratch-f16.gguf"
+
+            exported_path = export_to_gguf(
+                root / "trained-model", output_path, llama_cpp_dir
+            )
+
+            self.assertEqual(exported_path, output_path.resolve())
+            self.assertEqual(output_path.read_bytes(), b"GGUF")
+
+    def test_export_to_gguf_reports_missing_converter(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            with self.assertRaisesRegex(FileNotFoundError, "converter not found"):
+                export_to_gguf(
+                    Path(temporary_directory) / "trained-model",
+                    Path(temporary_directory) / "model.gguf",
+                    Path(temporary_directory) / "missing-llama.cpp",
+                )
+
+    def test_default_llama_cpp_dir_uses_environment_override(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            with patch.dict("os.environ", {"LLAMA_CPP_DIR": temporary_directory}):
+                self.assertEqual(
+                    default_llama_cpp_dir(), Path(temporary_directory)
+                )
+
+    def test_train_tokenizer_learns_vocabulary_and_formats_chat(self):
+        conversations = [
+            {
+                "messages": [
+                    {"role": "user", "content": "Write a Python function."},
+                    {"role": "assistant", "content": "def greet(): return 'hello'"},
+                ]
+            }
+        ]
+
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            tokenizer = train_tokenizer(
+                conversations, Path(temporary_directory), vocab_size=300
+            )
+        rendered = tokenizer.apply_chat_template(
+            conversations[0]["messages"],
+            tokenize=False,
+            add_generation_prompt=False,
+        )
+
+        self.assertIn("<|user|>", rendered)
+        self.assertIn("<|assistant|>", rendered)
+        self.assertGreater(len(tokenizer), 7)
+        self.assertGreater(len(tokenizer(rendered)["input_ids"]), 0)
+        unseen_text_ids = tokenizer("Καλημέρα 🚀")["input_ids"]
+        self.assertNotIn(tokenizer.unk_token_id, unseen_text_ids)
+
     def test_load_training_conversations_includes_coding_profile_and_skill_guides(self):
         with tempfile.TemporaryDirectory() as temporary_directory:
             project_dir = Path(temporary_directory)

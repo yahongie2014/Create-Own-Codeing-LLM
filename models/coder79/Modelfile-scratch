@@ -1,0 +1,15 @@
+FROM ./coder79-scratch-f16.gguf
+
+TEMPLATE """{{- if .System }}<|system|>
+{{ .System }}<|eos|>{{ end }}
+{{- range .Messages }}
+{{- if eq .Role "user" }}<|user|>
+{{ .Content }}<|eos|>
+{{- else if eq .Role "assistant" }}<|assistant|>
+{{ .Content }}<|eos|>
+{{- end }}
+{{- end }}<|assistant|>
+"""
+
+PARAMETER num_ctx 512
+PARAMETER stop "<|eos|>"
