@@ -39,11 +39,15 @@ The default serving flow pulls `qwen2.5-coder:3b` from Ollama, then applies Code
 
 To run Coder79, install and start Docker Desktop and make sure it is running. Internet access is needed on first startup to download the 3B model. You do not need Python or the training packages for standard Ollama chat. Python 3.10+ is needed to run the local file-navigation agent; it uses only the standard library. Training packages are needed only for the separate optional fine-tuning workflow:
 
-```bash
-python -m pip install torch datasets trl unsloth
+```powershell
+py -3.12 -m venv "$env:LOCALAPPDATA\customModel-venvs\training312"
+$trainingPython = "$env:LOCALAPPDATA\customModel-venvs\training312\Scripts\python.exe"
+& $trainingPython -m pip install --upgrade pip
+& $trainingPython -m pip install torch datasets trl unsloth
+& $trainingPython -m coder79.train
 ```
 
-Training is performed on the host with `python -m coder79.train`; Docker is used to serve the exported model with Ollama.
+Training is performed on the host; Docker/Ollama can then register the exported GGUF. Use Python 3.12 on Windows for the training stack. CPU-only fine-tuning works but is slow; the 129-example, three-epoch run took about 34 minutes on an 8-core CPU. Training output and GGUF artifacts are local and git-ignored.
 
 ## Dataset Format
 
@@ -97,7 +101,14 @@ Key training settings include:
 - Output directory: `artifacts/training`
 - Seed: `342`
 
-The checked-in coding/profile datasets provide 31 conversations: 9 core coding, 6 advanced coding, 3 PHP, and 13 skill-profile examples. Training additionally creates one short example from each skill's name and frontmatter description; it does not copy the full guides into training. This keeps the skill examples concise while the agent continues to retrieve full documents at runtime. The `coder79/train.py` output fine-tunes the 1.5B base only; the current Ollama `coder79` model is based on 3B and is not changed by training. Training on this small dataset can still overfit and does not guarantee capabilities; evaluate on held-out tasks before increasing training duration.
+The checked-in coding/profile datasets provide 31 conversations: 9 core coding, 6 advanced coding, 3 PHP, and 13 skill-profile examples. Training additionally creates one short example from each skill's name and frontmatter description; it does not copy the full guides into training. This keeps the skill examples concise while the agent continues to retrieve full documents at runtime. The `coder79/train.py` output fine-tunes the 1.5B base only; the current Ollama `coder79` model is based on 3B and is not changed by training. After a successful training run, register the exported 1.5B model separately so the existing 3B model remains available:
+
+```powershell
+docker compose exec --workdir /app/model ollama ollama create coder79-skills-1.5b -f Modelfile.skills
+docker compose exec -it ollama ollama run coder79-skills-1.5b
+```
+
+Training on this small dataset can still overfit and does not guarantee capabilities; evaluate on held-out tasks before increasing training duration.
 
 ### Applying and training updated skills
 
