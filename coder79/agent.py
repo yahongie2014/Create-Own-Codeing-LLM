@@ -1063,7 +1063,8 @@ def main() -> None:
             print(f"\nError: {exc}")
             continue
         print(f"\nCoder79: {answer}")
-
+    def hook():
+        return tools
 
 if __name__ == "__main__":
     main()

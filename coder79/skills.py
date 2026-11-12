@@ -10,6 +10,7 @@ from pathlib import Path
 
 MAX_SKILL_RESULTS = 8
 MAX_SKILL_CHARS = 20_000
+MAX_SKILL_TRAINING_CHARS = 3_000
 _WORD_PATTERN = re.compile(r"[a-z0-9][a-z0-9+#.-]*", re.IGNORECASE)
 
 
@@ -66,6 +67,34 @@ class SkillLibrary:
             for skill in self._skills
             if skill.description
         ]
+
+    def training_document_conversations(
+        self, max_chars: int = MAX_SKILL_TRAINING_CHARS
+    ) -> list[dict[str, list[dict[str, str]]]]:
+        if max_chars < 1:
+            raise ValueError("Training document chunk size must be positive.")
+
+        conversations = []
+        for skill in self._skills:
+            content = skill.path.read_text(encoding="utf-8")
+            for index, chunk in enumerate(
+                self._split_training_content(content, max_chars), start=1
+            ):
+                conversations.append(
+                    {
+                        "messages": [
+                            {
+                                "role": "user",
+                                "content": (
+                                    f"Teach me the technical guidance in section "
+                                    f"{index} of the {skill.name} skill."
+                                ),
+                            },
+                            {"role": "assistant", "content": chunk},
+                        ]
+                    }
+                )
+        return conversations
 
     def _ranked_matches(self, query: str) -> list[tuple[int, Skill]]:
         terms = set(_WORD_PATTERN.findall(query.casefold()))
@@ -134,6 +163,26 @@ class SkillLibrary:
                     )
                 )
         return sorted(skills, key=lambda skill: skill.identifier.casefold())
+
+    @staticmethod
+    def _split_training_content(content: str, max_chars: int) -> list[str]:
+        chunks = []
+        current = ""
+        for line in content.splitlines(keepends=True):
+            while line:
+                available = max_chars - len(current)
+                if available == 0:
+                    chunks.append(current)
+                    current = ""
+                    available = max_chars
+                current += line[:available]
+                line = line[available:]
+                if len(current) == max_chars:
+                    chunks.append(current)
+                    current = ""
+        if current:
+            chunks.append(current)
+        return chunks
 
     @staticmethod
     def _metadata(path: Path) -> tuple[str, str]:

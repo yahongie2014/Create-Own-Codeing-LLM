@@ -63,6 +63,20 @@ class SkillLibraryTests(unittest.TestCase):
         )
         self.assertNotIn("# Benchmark evaluation", messages[1]["content"])
 
+    def test_training_document_conversations_include_every_document_chunk(self):
+        source = self.skill_path.joinpath("SKILL.md").read_text(encoding="utf-8")
+
+        conversations = self.library.training_document_conversations(max_chars=40)
+
+        chunks = [item["messages"][1]["content"] for item in conversations]
+        self.assertGreater(len(chunks), 1)
+        self.assertTrue(all(len(chunk) <= 40 for chunk in chunks))
+        self.assertEqual("".join(chunks), source)
+
+    def test_training_document_conversations_reject_nonpositive_chunk_size(self):
+        with self.assertRaisesRegex(ValueError, "must be positive"):
+            self.library.training_document_conversations(max_chars=0)
+
     def test_read_truncates_oversized_skill_content(self):
         (self.skill_path / "SKILL.md").write_text(
             "---\nname: benchmark-evaluation\ndescription: benchmark\n---\n"
