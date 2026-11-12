@@ -79,6 +79,7 @@ class IdeServerTests(unittest.TestCase):
                 "search_files",
                 "search_skills",
                 "read_skill",
+                "search_web",
                 "fetch_url",
             ],
         )
@@ -103,6 +104,26 @@ class IdeServerTests(unittest.TestCase):
             )
 
         self.assertIn("Title: Example", response["result"]["content"][0]["text"])
+        self.assertFalse(response["result"]["isError"])
+
+    def test_mcp_search_web_tool_is_available(self):
+        with patch.object(self.workspace, "search_web", return_value="1. Example"):
+            response = handle_mcp_message(
+                {
+                    "jsonrpc": "2.0",
+                    "id": 7,
+                    "method": "tools/call",
+                    "params": {
+                        "name": "search_web",
+                        "arguments": {"query": "example"},
+                    },
+                },
+                self.workspace,
+                "coder79",
+                "http://localhost:11434",
+            )
+
+        self.assertIn("1. Example", response["result"]["content"][0]["text"])
         self.assertFalse(response["result"]["isError"])
 
     def test_mcp_notifications_have_no_response(self):

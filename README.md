@@ -1,6 +1,6 @@
 # Custom Model Training Project
 
-This project serves a code-focused model through Ollama and provides an optional small-model fine-tuning pipeline. The default Coder79 service uses Qwen2.5-Coder 3B with the project's system instructions; optional local training remains a separate workflow. Coder79's terminal and IDE agent integrations can fetch public static web pages and retrieve relevant AI research skill guides.
+This project serves a code-focused model through Ollama and provides an optional small-model fine-tuning pipeline. The default Coder79 service uses Qwen2.5-Coder 3B with the project's system instructions; optional local training remains a separate workflow. Coder79's terminal and IDE agent integrations can search the public web, fetch public static web pages, and retrieve relevant AI research skill guides.
 
 ## Repository Layout
 
@@ -170,18 +170,18 @@ For an interactive chat that can inspect public URLs, use Open WebUI at
 `ollama run coder79` directly talks to the text model without its web-fetch
 tools.
 
-To try web analysis in Open WebUI, select `coder79` and ask it to fetch a
-public article or documentation URL, then specify the analysis you want. For
-example:
+To discover websites from a topic in Open WebUI, select `coder79` and ask it
+to search the web for the topic. It can then fetch relevant public result
+pages. To inspect a known URL directly, ask it to fetch that URL, for example:
 
 > Fetch https://example.com/ and summarize its purpose, key points, and any
 > limitations you can infer from the page.
 
-You can also paste article text directly into the chat. URL fetching supports
-public HTTP(S) pages served as static HTML, XHTML, or plain text; it does not
-search the web, run JavaScript, access sign-in-only content, or fetch PDFs.
-Only the content returned by the page (capped at 12,000 characters for model
-context) can be analyzed.
+Web search uses Bing's public HTML results and requires outbound
+network access. URL fetching supports public HTTP(S) pages served as static
+HTML, XHTML, or plain text; the agent does not run JavaScript, access
+sign-in-only content, or fetch PDFs. Only the content returned by a page
+(capped at 12,000 characters for model context) can be analyzed.
 
 Direct model chat remains available for text-only use:
 
@@ -206,7 +206,7 @@ Open WebUI at `http://localhost:3000`, sign in, and select the `coder79` model. 
 
 ### Use Coder79 from an IDE
 
-The local IDE server connects an IDE to Ollama and scopes file access to one project folder you select. It uses Python's standard library; no extra packages are needed. Start Docker/Ollama first. In addition to workspace tools, Coder79 can fetch a public HTTP(S) URL to inspect static page text, headings, links, and common page landmarks. It does not search the web, sign in, execute JavaScript, or access local/private network destinations. Fetches use standard web ports, validate each redirect, and enforce timeout and response-size limits. This feature requires outbound network access and a trusted TLS certificate chain from the agent process/container. If your environment uses a private certificate authority, set `SSL_CERT_FILE` to its trusted CA bundle; certificate verification is never disabled.
+The local IDE server connects an IDE to Ollama and scopes file access to one project folder you select. It uses Python's standard library; no extra packages are needed. Start Docker/Ollama first. In addition to workspace tools, Coder79 can search the public web with Bing and fetch public HTTP(S) URLs to inspect static page text, headings, links, and common page landmarks. It cannot sign in, execute JavaScript, or access local/private network destinations. Requests use standard web ports, validate each redirect, and enforce timeout and response-size limits. These features require outbound network access and a trusted TLS certificate chain from the agent process/container. If your environment uses a private certificate authority, set `SSL_CERT_FILE` to its trusted CA bundle; certificate verification is never disabled.
 
 #### Configure Continue for Plan and Agent modes
 
@@ -314,7 +314,7 @@ The service uses resource limits configured in `docker-compose.yml`:
 - Updating the skill profile or datasets does not change model weights until `python -m coder79.train` completes training and exports the GGUF. CPU training is supported by the installed Unsloth version but is substantially slower than GPU training.
 - The model export is done in GGUF format for compatibility with local inference tools such as Ollama.
 - Running the full training pipeline requires substantial memory and a compatible ML environment.
-- The Ollama model is a text-generation model, not an operating-system agent. The local terminal and IDE integrations provide read-only access to one explicitly selected workspace and a public static-page fetch tool; they cannot edit or run project files, search the web, or access private/local network URLs.
+- The Ollama model is a text-generation model, not an operating-system agent. The local terminal and IDE integrations provide read-only access to one explicitly selected workspace, public web search, and a static-page fetch tool; they cannot edit or run project files or access private/local network URLs.
 - The training examples and model prompt request concise explanations, not hidden chain-of-thought or `<think>` output.
 
 ## Suggested Next Steps

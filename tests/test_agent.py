@@ -1,3 +1,4 @@
+import base64
 import json
 import tempfile
 import unittest
@@ -76,6 +77,47 @@ class WorkspaceToolsTests(unittest.TestCase):
 
         self.assertIn("app.py:1:", result)
         self.assertNotIn(".env", result)
+
+    def test_search_web_extracts_unique_public_results_and_limits_count(self):
+        parsed_url = urllib.parse.urlsplit(
+            "https://www.bing.com/search?q=python&setlang=en-us&cc=US"
+        )
+        encoded_destination = base64.urlsafe_b64encode(
+            b"https://example.org/docs"
+        ).decode().rstrip("=")
+        markup = (
+            '<ol><li class="b_algo"><h2><a href="https://example.com/guide">'
+            "Python guide</a></h2></li>"
+            '<li class="b_algo"><h2><a href="https://www.bing.com/ck/a?u=a1'
+            f'{encoded_destination}">Python docs</a></h2></li>'
+            '<li class="b_algo"><h2><a href="https://example.com/guide">'
+            "Duplicate</a></h2></li>"
+            '<li class="b_algo"><h2><a href="javascript:alert(1)">Unsafe</a>'
+            "</h2></li></ol>"
+        ).encode()
+        with (
+            patch.object(
+                self.tools,
+                "_validate_public_url",
+                return_value=(parsed_url, "52.142.124.215"),
+            ) as validate,
+            patch(
+                "coder79.agent._request_public_url",
+                return_value=(200, {"content-type": "text/html; charset=utf-8"}, markup),
+            ),
+        ):
+            result = self.tools.search_web("python", max_results=8)
+
+        self.assertIn("1. Python guide\n   https://example.com/guide", result)
+        self.assertIn("2. Python docs\n   https://example.org/docs", result)
+        self.assertNotIn("Duplicate", result)
+        self.assertNotIn("Unsafe", result)
+        validate.assert_called_once()
+
+    def test_search_web_rejects_empty_or_overlong_queries(self):
+        for query in ("  ", "x" * 501):
+            with self.subTest(query_length=len(query)), self.assertRaises(ValueError):
+                self.tools.search_web(query)
 
     def test_fetch_url_extracts_static_page_structure_and_visible_content(self):
         parsed_url = urllib.parse.urlsplit("https://example.com/")
@@ -173,6 +215,25 @@ class WorkspaceToolsTests(unittest.TestCase):
             '{"name":"fetch_url","arguments":{"url":"https://example.com/"}}'
         )
         self.assertEqual(web_call[0]["function"]["name"], "fetch_url")
+        search_call = _text_tool_calls(
+            '{"name":"search_web","arguments":{"query":"python docs"}}'
+        )
+        self.assertEqual(search_call[0]["function"]["name"], "search_web")
+        array_calls = _text_tool_calls(
+            '[{"name":"fetch_url","arguments":{"url":"https://example.com/"}},'
+            '{"name":"search_web","arguments":{"query":"python docs"}}]'
+        )
+        self.assertEqual(
+            [call["function"]["name"] for call in array_calls],
+            ["fetch_url", "search_web"],
+        )
+        self.assertEqual(
+            _text_tool_calls(
+                '[{"name":"fetch_url","arguments":{"url":"https://example.com/"}},'
+                '{"name":"unknown","arguments":{}}]'
+            ),
+            [],
+        )
         fenced_web_call = _text_tool_calls(
             '{"name":"fetch_url","arguments":{"url":"https://example.com/"}}\n```'
         )
@@ -292,6 +353,27 @@ class WorkspaceToolsTests(unittest.TestCase):
         self.assertEqual(answer, "The page is titled Example.")
         self.assertIn("Web tool result from fetch_url:", str(messages))
         self.assertIn("Title: Example", str(messages))
+
+    def test_chat_uses_web_search_tool_result(self):
+        responses = [
+            {
+                "message": {
+                    "role": "assistant",
+                    "content": '{"name":"search_web","arguments":{"query":"example docs"}}',
+                }
+            },
+            {"message": {"role": "assistant", "content": "I found the documentation."}},
+        ]
+        with (
+            patch("coder79.agent._request_ollama", side_effect=responses),
+            patch.object(self.tools, "search_web", return_value="1. Example docs\n   https://example.com"),
+        ):
+            messages = [{"role": "user", "content": "Find example docs"}]
+            answer = chat(self.tools, "coder79", "http://localhost:11434", messages)
+
+        self.assertEqual(answer, "I found the documentation.")
+        self.assertIn("Web tool result from search_web:", str(messages))
+        self.assertIn("https://example.com", str(messages))
 
 
 if __name__ == "__main__":
