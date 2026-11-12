@@ -50,6 +50,19 @@ class SkillLibraryTests(unittest.TestCase):
         )
         self.assertIsNone(self.library.best_match_id("unrelated culinary topic"))
 
+    def test_training_conversations_use_concise_metadata_not_full_skill_documents(self):
+        conversations = self.library.training_conversations()
+
+        self.assertEqual(len(conversations), 1)
+        messages = conversations[0]["messages"]
+        self.assertEqual([message["role"] for message in messages], ["user", "assistant"])
+        self.assertIn("benchmark-evaluation", messages[0]["content"])
+        self.assertEqual(
+            messages[1]["content"],
+            "Evaluate language models with reproducible benchmarks.",
+        )
+        self.assertNotIn("# Benchmark evaluation", messages[1]["content"])
+
     def test_read_truncates_oversized_skill_content(self):
         (self.skill_path / "SKILL.md").write_text(
             "---\nname: benchmark-evaluation\ndescription: benchmark\n---\n"

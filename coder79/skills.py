@@ -48,6 +48,25 @@ class SkillLibrary:
         matches = self._ranked_matches(query)
         return matches[0][1].identifier if matches else None
 
+    def training_conversations(self) -> list[dict[str, list[dict[str, str]]]]:
+        return [
+            {
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": (
+                            f"In one concise paragraph, explain what {skill.name} "
+                            "covers and when it is useful. Use only the reference "
+                            "description."
+                        ),
+                    },
+                    {"role": "assistant", "content": skill.description},
+                ]
+            }
+            for skill in self._skills
+            if skill.description
+        ]
+
     def _ranked_matches(self, query: str) -> list[tuple[int, Skill]]:
         terms = set(_WORD_PATTERN.findall(query.casefold()))
         if not terms:

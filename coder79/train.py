@@ -1,5 +1,4 @@
-import unsloth  # MUST be the absolute first import
-
+import unsloth
 import argparse
 import json
 import os
@@ -10,6 +9,8 @@ from importlib import import_module
 from pathlib import Path
 from trl import SFTTrainer, SFTConfig
 from unsloth import FastLanguageModel, get_chat_template
+
+from .skills import SkillLibrary
 
 if __name__ == "__main__":
     project_dir = Path(__file__).resolve().parents[1]
@@ -82,11 +83,24 @@ if __name__ == "__main__":
         ],
         split="train",
     )
-    skills = json.loads(
+    skill_profile = json.loads(
         (project_dir / "data" / "coding_skills.json").read_text(encoding="utf-8")
     )
-    skills_dataset = datasets.Dataset.from_list(skills["training_conversations"])
-    dataset = datasets.concatenate_datasets([dataset, skills_dataset])
+    profile_dataset = datasets.Dataset.from_list(
+        skill_profile["training_conversations"]
+    )
+    research_skills = SkillLibrary(
+        project_dir / "data" / "AI-Research-SKILLs"
+    ).training_conversations()
+    research_skills_dataset = datasets.Dataset.from_list(research_skills)
+    dataset = datasets.concatenate_datasets(
+        [dataset, profile_dataset, research_skills_dataset]
+    )
+    print(
+        f"Training conversations: {len(dataset)} total, "
+        f"including {len(research_skills)} concise research-skill examples.",
+        flush=True,
+    )
     dataset = dataset.map(
         lambda x: {
             "text": [

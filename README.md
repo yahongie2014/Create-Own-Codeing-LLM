@@ -29,7 +29,8 @@ The default serving flow pulls `qwen2.5-coder:3b` from Ollama, then applies Code
 
 1. Loads the `Qwen/Qwen2.5-Coder-1.5B-Instruct` model.
 2. Applies LoRA adapters for efficient fine-tuning.
-3. Loads the chat-style datasets and skill-profile examples.
+3. Loads the chat-style datasets, skill-profile examples, and one concise
+   training example for each documented AI research skill (98 examples).
 4. Formats the dataset using the Qwen chat template.
 5. Trains the model using supervised fine-tuning.
 6. Exports the trained model to `models/coder79/` in GGUF format. This output does not replace the default 3B serving model.
@@ -96,7 +97,7 @@ Key training settings include:
 - Output directory: `artifacts/training`
 - Seed: `342`
 
-The checked-in datasets provide 31 training conversations: 9 core coding, 6 advanced coding, 3 PHP, and 13 skill-profile examples. The expanded profile emphasizes repository analysis, debugging from evidence, architecture and migrations, reliability, testing, frontend accessibility, and code review. `coder79/train.py` reads these conversations from `data/`. This remains a small dataset; it can overfit and does not guarantee these capabilities. Evaluate on held-out tasks before increasing training duration.
+The checked-in coding/profile datasets provide 31 conversations: 9 core coding, 6 advanced coding, 3 PHP, and 13 skill-profile examples. Training additionally creates one short example from each skill's name and frontmatter description; it does not copy the full guides into training. This keeps the skill examples concise while the agent continues to retrieve full documents at runtime. The `coder79/train.py` output fine-tunes the 1.5B base only; the current Ollama `coder79` model is based on 3B and is not changed by training. Training on this small dataset can still overfit and does not guarantee capabilities; evaluate on held-out tasks before increasing training duration.
 
 ### Applying and training updated skills
 
