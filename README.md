@@ -161,6 +161,8 @@ docker compose exec ollama ollama create coder79-scratch -f /app/model/Modelfile
 docker compose exec ollama ollama run coder79-scratch
 ```
 
+The scratch model trained with 512-token sequences. Its Ollama Modelfile sets a 4096-token runtime context to leave more room for prompts; this extends beyond its training context and may reduce quality on long inputs. Re-run `ollama create` after changing the Modelfile to reload the model.
+
 This model does not replace the default Ollama model.
 
 ## Run the Model with Docker

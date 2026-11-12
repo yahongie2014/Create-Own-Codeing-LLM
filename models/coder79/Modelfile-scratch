@@ -11,5 +11,5 @@ TEMPLATE """{{- if .System }}<|system|>
 {{- end }}<|assistant|>
 """
 
-PARAMETER num_ctx 512
+PARAMETER num_ctx 4096
 PARAMETER stop "<|eos|>"
